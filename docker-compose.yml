@@ -1,0 +1,10 @@
+app:
+  build: app
+  ports:
+   - "49160:8080"
+  volumes_from:
+  - data
+data:
+  build: data
+  volumes:
+  - /data

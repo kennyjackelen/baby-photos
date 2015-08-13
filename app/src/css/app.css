@@ -1,0 +1,38 @@
+* {
+  font-family: Trebuchet, Tahoma, Arial, sans-serif;
+}
+
+html {
+  /* created using http://mudcu.be/bg */
+  background-image: url('../image/pattern.png');
+  background-repeat: repeat-x, repeat;
+  background-attachment: fixed;
+
+  color: rgba( 255, 255, 255, 0.9 );
+}
+
+header {
+  padding: 1rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  line-height: 1.35;
+}
+
+.subtitle {
+  font-weight: lighter;
+}
+
+.thumbnail {
+  max-width: 100%;
+}
+
+.thumbnail.seen {
+  -webkit-filter: brightness(0.75);
+}
+
+.thumbnail.seen:hover {
+  -webkit-filter: none;
+}

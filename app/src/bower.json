@@ -1,0 +1,18 @@
+{
+  "name": "photo-gallery",
+  "main": "index.js",
+  "version": "0.0.0",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "material-design-lite": "~1.0.2",
+    "photoswipe": "~4.1.0",
+    "material-design-icons": "~2.0.0"
+  }
+}
