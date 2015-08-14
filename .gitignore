@@ -1,3 +1,5 @@
 app/src/bower_components
-app/src/credentials
+app/src/credentials/client_secret.json
+app/src/credentials/drive-api-token.json
+app/src/credentials/node_modules
 app/src/node_modules
