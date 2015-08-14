@@ -11,6 +11,7 @@ var lwip = require('lwip');
 
 var PORT = 8080;
 var CACHE_DIR = '/data/photocache';
+var REFRESH_INTERVAL = 5 * 60 * 1000;
 
 initializeCredentials();
 
@@ -174,7 +175,7 @@ function initializeApp( oauth2Client ) {
         async.eachSeries(
           photos,
           _preCacheOnePhoto,
-          function() { /*console.log( 'pre-cache done...'); */setTimeout( preCacheImages, 60000 ); }  
+          function() { /*console.log( 'pre-cache done...'); */setTimeout( preCacheImages, REFRESH_INTERVAL ); }  
         );
       }
     );
