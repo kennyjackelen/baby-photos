@@ -65,6 +65,8 @@ function initializeApp( oauth2Client ) {
   hbs.localsAsTemplateData( app );
 
   app.locals.title = 'Baby Girl Jackelen';
+  app.locals.subtitle = 'Arriving September 2015';
+  app.locals.supporting_text = 'We\'ll be posting photos here as we take them, so check back often!';
 
   app.locals.thumbSize1x = 250; 
   app.locals.thumbSize1_5x = 1.5 * app.locals.thumbSize1x; 
@@ -206,6 +208,24 @@ function initializeApp( oauth2Client ) {
 
   function preCacheImages() {
     /*console.log( 'Pre-caching images...');*/
+    request('https://spreadsheets.google.com/feeds/cells/1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8/od6/public/full?alt=json',
+      function( error, response, body ) {
+        if ( !error && response.statusCode === 200 ) {
+          var title, subtitle, supporting_text;
+          try {
+            var data = JSON.parse( body );
+            title = data.feed.entry[1].content.$t;
+            subtitle = data.feed.entry[3].content.$t;
+            supporting_text = data.feed.entry[5].content.$t;
+          }
+          catch(e){ console.log(e); return; }
+          app.locals.title = title;
+          app.locals.subtitle = subtitle;
+          app.locals.supporting_text = supporting_text;
+        }
+      }
+    );
+
     getPhotosFromGoogleDrive(
       function( photos ) {
         async.eachSeries(
