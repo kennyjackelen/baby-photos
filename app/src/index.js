@@ -305,7 +305,20 @@ function initializeApp( oauth2Client ) {
           return;
         }
         results.forEach( function( item ) { item.imgLink = item.webContentLink.split("&export=")[0]; } );
-        callback( results.filter( function( item ){ return !item.explicitlyTrashed; } ) );
+        callback( results.filter( __filterPhotos ).sort( __sortPhotos ) );
+      }
+
+      function __filterPhotos( item ) {
+        if ( item.explicitlyTrashed ) { return false; }
+        if ( item.mimeType !== 'image/jpeg' ) { return false; }
+        return true;
+      }
+
+      // Sort photos so the most recently taken photo comes first
+      function __sortPhotos( a, b ) {
+        var aDate = a.imageMediaMetadata.date;
+        var bDate = b.imageMediaMetadata.date;
+        return bDate.localeCompare( aDate );
       }
     }
   }
