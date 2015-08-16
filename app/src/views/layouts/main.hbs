@@ -13,10 +13,14 @@
   <!-- endbuild -->
 </head>
 <body>
-  <header>
-    <div class="title">{{@title}}</div>
-    <div class="subtitle">We'll be posting photos here as we take them, so check back often!</div>
-  </header>
+  <div class="mdl-card mdl-shadow--2dp title-card">
+    <div class="title-card--title-text">
+      {{@title}}
+    </div>
+    <div class="title-card--supporting-text">
+      We'll be posting photos here as we take them, so check back often!
+    </div>
+  </div>
   {{{body}}}
   {{> photoswipe}}
   <!-- build:js(.) js/combined.js -->
@@ -25,5 +29,6 @@
   <script src="js/photoswipe-support.js"></script> 
   <script src="js/app.js"></script> 
   <!-- endbuild -->
+  <link href='http://fonts.googleapis.com/css?family=Gorditas:700' rel='stylesheet' type='text/css'>
 </body>
 </html>

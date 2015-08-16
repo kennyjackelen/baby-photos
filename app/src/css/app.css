@@ -1,28 +1,39 @@
-* {
-  font-family: Trebuchet, Tahoma, Arial, sans-serif;
-}
-
 html {
-  /* created using http://mudcu.be/bg */
-  background-image: url('../image/pattern.png');
-  background-repeat: repeat-x, repeat;
-  background-attachment: fixed;
-
-  color: rgba( 255, 255, 255, 0.9 );
+  background-color: rgb(68, 77, 80); /* stonecutter */
 }
 
-header {
-  padding: 1rem;
+.title-card {
+  
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 1em;
+  margin-bottom: 1em;
+
+  /* mdl gives cards a min height of 200px, but we don't want ours to be that tall */
+  min-height: inherit;
+
+  min-width: 50%;
+  max-width: 90%;
+
+  text-align: center;
+  color: rgb(81, 59, 51);
+}
+.title-card--title-text {
+  font-family: Gorditas, Trebuchet, Tahoma, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 120%;
+  padding: 16px;
+  padding-bottom: 0;
 }
 
-.title {
-  font-size: 2.5rem;
-  font-weight: bold;
-  line-height: 1.35;
-}
-
-.subtitle {
-  font-weight: lighter;
+.title-card--supporting-text {
+  color: rgba(81, 59, 51, .75);
+  font-size: 13px;
+  line-height: 18px;
+  overflow: hidden;
+  padding: 16px;
+  padding-top: 10px;
 }
 
 .thumbnail {
