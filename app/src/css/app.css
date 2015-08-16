@@ -47,3 +47,8 @@ html {
 .thumbnail.seen:hover {
   -webkit-filter: none;
 }
+
+/* not 100% sure why but photoswipe's "center" caption is left-aligned. */
+.pswp__caption__center {
+  text-align: center;
+}

@@ -9,6 +9,7 @@ var google = require('googleapis');
 var request = require('request');
 var lwip = require('lwip');
 var imagemin = require('imagemin');
+var moment = require('moment');
 
 var PORT = 8080;
 var CACHE_DIR = '/data/photocache';
@@ -304,8 +305,27 @@ function initializeApp( oauth2Client ) {
           errCallback( err );
           return;
         }
-        results.forEach( function( item ) { item.imgLink = item.webContentLink.split("&export=")[0]; } );
+        results.forEach( __processPhotos );
         callback( results.filter( __filterPhotos ).sort( __sortPhotos ) );
+      }
+
+      function __processPhotos( item ) {
+        var dateStr;
+        try {
+          var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
+          dateStr = dateMoment.format('LL');
+        }
+        catch ( e ) {}
+        item.caption = '';
+        if ( item.description ) {
+          item.caption = item.description;
+          if ( dateStr ) {
+            item.caption = item.caption + ' (' + dateStr + ')';
+          }
+        }
+        else if ( dateStr ) {
+          item.caption = dateStr;
+        }
       }
 
       function __filterPhotos( item ) {
