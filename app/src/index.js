@@ -8,6 +8,7 @@ var async = require('async');
 var google = require('googleapis');
 var request = require('request');
 var lwip = require('lwip');
+var imagemin = require('imagemin');
 
 var PORT = 8080;
 var CACHE_DIR = '/data/photocache';
@@ -365,8 +366,16 @@ function getOnePhoto( id, w, h, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
     request( options, function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        fs.writeFile( filenameFull, body );
-        callback( null, body );
+        new imagemin()
+          .src( body )
+          .run( function( err, files ) {
+            if ( err ) {
+              callback( err );
+              return;
+            }
+            fs.writeFile( filenameFull, files[0].contents );
+            callback( null, files[0].contents );
+          });
         return;
       }
       callback( 'Error loading photo from web: ' + error );
@@ -389,8 +398,16 @@ function getOnePhoto( id, w, h, callback ) {
             callback( 'Error converting image to JPG: ' + err );
             return;
           }
-          fs.writeFile( filenameResized, buffer );
-          callback( null, buffer );
+          new imagemin()
+            .src( buffer )
+            .run( function( err, files ) {
+              if ( err ) {
+                callback( err );
+                return;
+              }
+              fs.writeFile( filenameResized, files[0].contents );
+              callback( null, files[0].contents );
+            });
         });
       });
     }); 
