@@ -81,6 +81,24 @@ function initializeApp( oauth2Client ) {
         var cellWidth;
         var cellWidthTablet;
         var cellWidthPhone;
+
+        var desiredLength = Number( req.query.num );
+
+        if ( desiredLength > 0 ) {
+          for ( var i = 0; photos.length < desiredLength; i++ ) {
+            // add photos until we have what we want
+            photos.push(
+              {
+                id: 'placeholder' + i,
+                imageMediaMetadata: {
+                  height: 600,
+                  width: 900
+                }
+              }
+            );
+          }
+        }
+
         var count = photos.length;
         if ( count < 4 ) {
           cellWidth = 2;
@@ -126,6 +144,16 @@ function initializeApp( oauth2Client ) {
         sendError( res, errMsg );
       }
     );  
+  });
+
+  app.get('/photo/placeholder\\d+/:width/:height', function (req, res) {
+    request.get('http://lorempixel.com/' + req.params.width + '/' + req.params.height + '/animals/')
+      .pipe( res );
+  });
+
+  app.get('/photo/placeholder\\d+/full', function (req, res) {
+    request.get('http://lorempixel.com/900/600/animals/')
+      .pipe( res );
   });
 
   app.get('/photo/:imageID/full', function (req, res) {
