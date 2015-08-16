@@ -50,13 +50,19 @@ gulp.task( '_copyPartials', function() {
         .pipe( gulp.dest('build/views/partials', { overwrite: false } ) );
 });
 
+gulp.task( '_copyIcons', function() {
+  return gulp.src('icons/*')
+        .pipe( gulp.dest('build/icons', { overwrite: false } ) );
+});
+
 gulp.task( 'build',
   [
     '_replaceRefs',
     '_copyPhotoswipe',
     '_copyImages',
     '_copyViews',
-    '_copyPartials'
+    '_copyPartials',
+    '_copyIcons'
   ],
   function() {}
 );

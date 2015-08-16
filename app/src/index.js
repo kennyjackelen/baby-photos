@@ -198,6 +198,7 @@ function initializeApp( oauth2Client ) {
   app.use('/js', express.static( __dirname + '/build/js', staticOptions ) );
   app.use('/css', express.static( __dirname + '/build/css', staticOptions ) );
   app.use('/image', express.static( __dirname + '/build/image', staticOptions ) );
+  app.use('/icons', express.static( __dirname + '/build/icons', staticOptions ) );
 
   app.listen(PORT);
   console.log('Running on http://localhost:' + PORT);
