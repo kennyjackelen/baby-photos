@@ -12,7 +12,6 @@
   ],
   "dependencies": {
     "material-design-lite": "~1.0.2",
-    "photoswipe": "~4.1.0",
-    "material-design-icons": "~2.0.0"
+    "photoswipe": "~4.1.0"
   }
 }

@@ -5,10 +5,12 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{@title}}</title>
+  <!-- build:css(.) css/combined.css -->
   <link rel="stylesheet" href="bower_components/material-design-lite/material.css">
   <link rel="stylesheet" href="bower_components/photoswipe/dist/photoswipe.css">
   <link rel="stylesheet" href="bower_components/photoswipe/dist/default-skin/default-skin.css">
   <link rel="stylesheet" href="css/app.css">
+  <!-- endbuild -->
 </head>
 <body>
   <header>
@@ -17,9 +19,11 @@
   </header>
   {{{body}}}
   {{> photoswipe}}
+  <!-- build:js(.) js/combined.js -->
   <script src="bower_components/photoswipe/dist/photoswipe.min.js"></script> 
   <script src="js/photoswipe-ui.js"></script> 
   <script src="js/photoswipe-support.js"></script> 
   <script src="js/app.js"></script> 
+  <!-- endbuild -->
 </body>
 </html>

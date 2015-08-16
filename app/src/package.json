@@ -1,18 +1,24 @@
 {
-  "name": "docker-centos-hello",
+  "name": "photo-gallery",
   "private": true,
   "version": "0.0.1",
-  "description": "Node.js Hello world app on CentOS using docker",
-  "author": "Daniel Gasienica <daniel@gasienica.ch>",
   "dependencies": {
     "async": "^1.4.1",
     "express": "3.x",
     "fs": "0.0.2",
     "google-auth-library": "^0.9.6",
     "googleapis": "^2.1.3",
+    "gulp": "^3.9.0",
+    "gulp-csso": "^1.0.0",
+    "gulp-if": "^1.2.5",
+    "gulp-imagemin": "^2.3.0",
+    "gulp-rev": "^5.1.0",
+    "gulp-rev-replace": "^0.4.2",
+    "gulp-uglify": "^1.2.0",
+    "gulp-useref": "^1.3.0",
     "hbs": "^3.1.0",
+    "imagemin": "^3.2.0",
     "lwip": "0.0.7",
-    "readline": "0.0.8",
     "request": "^2.60.0"
   }
 }

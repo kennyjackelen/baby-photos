@@ -12,6 +12,7 @@ var lwip = require('lwip');
 var PORT = 8080;
 var CACHE_DIR = '/data/photocache';
 var REFRESH_INTERVAL = 5 * 60 * 1000;
+var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
 initializeCredentials();
 
@@ -58,7 +59,7 @@ function initializeApp( oauth2Client ) {
 
   var app = express();
 
-  hbs.registerPartials( __dirname + '/views/partials' );
+  hbs.registerPartials( __dirname + '/build/views/partials' );
   hbs.localsAsTemplateData( app );
 
   app.locals.title = 'Baby Girl Jackelen';
@@ -67,7 +68,7 @@ function initializeApp( oauth2Client ) {
   app.locals.thumbSize1_5x = 1.5 * app.locals.thumbSize1x; 
   app.locals.thumbSize2x = 2 * app.locals.thumbSize1x; 
 
-  app.set('views', __dirname + '/views');
+  app.set('views', __dirname + '/build/views');
   app.set('view engine', 'hbs');
   app.set('view options', { layout: 'layouts/main' });
   app.engine('hbs', hbs.__express);
@@ -135,6 +136,7 @@ function initializeApp( oauth2Client ) {
           return;
         }
         res.set( 'Content-Type', 'image/jpeg' );
+        res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
         res.send( imageBuffer );
       });
   });
@@ -155,14 +157,17 @@ function initializeApp( oauth2Client ) {
           return;
         }
         res.set( 'Content-Type', 'image/jpeg' );
+        res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
         res.send( imageBuffer );
       });
   });
 
-  app.use('/js', express.static( __dirname + '/js') );
-  app.use('/css', express.static( __dirname + '/css') );
-  app.use('/image', express.static( __dirname + '/image') );
-  app.use('/bower_components', express.static( __dirname + '/bower_components') );
+  var staticOptions = {
+    maxAge: CACHE_TTL * 1000
+  };
+  app.use('/js', express.static( __dirname + '/build/js', staticOptions ) );
+  app.use('/css', express.static( __dirname + '/build/css', staticOptions ) );
+  app.use('/image', express.static( __dirname + '/build/image', staticOptions ) );
 
   app.listen(PORT);
   console.log('Running on http://localhost:' + PORT);
