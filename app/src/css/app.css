@@ -2,6 +2,11 @@ html {
   background-color: rgb(68, 77, 80); /* stonecutter */
 }
 
+body {
+  /* prevent scrollbar from having 100% min-height body from MDL */
+  min-height: inherit;
+}
+
 .title-card {
   
   margin-left: auto;
