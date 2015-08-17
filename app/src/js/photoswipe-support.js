@@ -1,6 +1,9 @@
 /* adapted from http://photoswipe.com/documentation/getting-started.html */
 
 var initPhotoSwipeFromDOM = function(gallerySelector) {
+    
+    // There are 5 image sizes for each image: full size, 75%, 50%, 25%, 15%
+    var ratios = [ 0.75, 0.5, 0.25, 0.15 ];
 
     // parse slide data (url, title, size ...) from DOM elements 
     // (children of gallerySelector)
@@ -38,10 +41,17 @@ var initPhotoSwipeFromDOM = function(gallerySelector) {
                 title: linkEl.getAttribute('data-caption')
             };
 
-            if(linkEl.children.length > 0) {
-                // <img> thumbnail element, retrieving thumbnail url
-                item.msrc = linkEl.children[0].getAttribute('src');
-            } 
+            // Use the smallest available size for the "thumbnail" that
+            // photoswipe shows while waiting for the big one to load over it.
+            // This does mean we can end up loading three versions of the image...
+            // (square thumbnail, smallest image, optimal image)
+            // I might want to make this better by making the thumbnail image have
+            // the same aspect ratio as the original and use some css to shift it
+            // into a square thumbnail
+            var smallestRatio = ratios[ ratios.length - 1 ];
+            var smallW = Math.floor( smallestRatio * item.originalImage.w );
+            var smallH = Math.floor( smallestRatio * item.originalImage.h );
+            item.msrc = 'photo/' + item.originalImage.id + '/' + smallW + '/' + smallH;
 
             item.el = figureEl; // save link to element for getThumbBoundsFn
             items.push(item);
@@ -215,8 +225,6 @@ var initPhotoSwipeFromDOM = function(gallerySelector) {
         gallery.listen('gettingData', function(index, item) {
 
             // I added this to handle responsive images.
-            // There are 5 image sizes for each image: full size, 75%, 50%, 25%, 15%
-            var ratios = [ 0.75, 0.5, 0.25, 0.15 ];
             var ratio = 1;
             for ( var i = 0; i < ratios.length; i++ ) {
                 if ( realViewportWidth > ratios[ i ] * item.originalImage.w ) {
