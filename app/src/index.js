@@ -16,6 +16,11 @@ var CACHE_DIR = '/data/photocache';
 var REFRESH_INTERVAL = 5 * 60 * 1000;
 var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
+var STRING_SHEET_ID = '1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8';
+var TITLE_ENTRY = 1;
+var SUBTITLE_ENTRY = 3;
+var SUPPORTING_TEXT_ENTRY = 5;
+
 initializeCredentials();
 
 function initializeCredentials() {
@@ -60,6 +65,7 @@ function initializeCredentials() {
 function initializeApp( oauth2Client ) {
 
   var app = express();
+  var mostRecentPhotos = [];
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
   hbs.localsAsTemplateData( app );
@@ -80,58 +86,20 @@ function initializeApp( oauth2Client ) {
   app.use( express.compress() ); 
 
   app.get('/', function (req, res) {
+
+    // If we have a set of photos (we probably do), and the user
+    // isn't asking to do a hard reload, then just send the ones
+    // we have for faster performance.
+    if ( !req.query.reload && mostRecentPhotos.length > 0 ) {
+      returnPhotosToClient( mostRecentPhotos, req, res );
+      return;
+    }
+
+    // Otherwise we'll take the slow way and make several requests
+    // to Google before returning a document to the user.
     getPhotosFromGoogleDrive(
       function( photos ) {
-        var cellWidth;
-        var cellWidthTablet;
-        var cellWidthPhone;
-
-        var desiredLength = Number( req.query.num );
-
-        if ( desiredLength > 0 ) {
-          for ( var i = 0; photos.length < desiredLength; i++ ) {
-            // add photos until we have what we want
-            photos.push(
-              {
-                id: 'placeholder' + i,
-                imageMediaMetadata: {
-                  height: 600,
-                  width: 900
-                }
-              }
-            );
-          }
-        }
-
-        var count = photos.length;
-        if ( count < 4 ) {
-          cellWidth = 2;
-          cellWidthTablet = 2;
-          cellWidthPhone = 2;
-        }
-        else if ( count < 8 ) {
-          cellWidth = 2;
-          cellWidthTablet = 2;
-          cellWidthPhone = 1;
-        }
-        else if ( count < 12 ) {
-          cellWidth = 2;
-          cellWidthTablet = 1;
-          cellWidthPhone = 1;
-        }
-        else {
-          cellWidth = 1;
-          cellWidthTablet = 1;
-          cellWidthPhone = 1;
-        }
-        res.render('gallery',
-          {
-            photos: photos,
-            cellWidth: cellWidth,
-            cellWidthTablet: cellWidthTablet,
-            cellWidthPhone: cellWidthPhone
-          }
-        );
+        returnPhotosToClient( photos, req, res );
       },
       function( errMsg ) {
         res.status(500).send( errMsg );
@@ -206,32 +174,68 @@ function initializeApp( oauth2Client ) {
   console.log('Running on http://localhost:' + PORT);
   preCacheImages();
 
-  function preCacheImages() {
-    /*console.log( 'Pre-caching images...');*/
-    request('https://spreadsheets.google.com/feeds/cells/1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8/od6/public/full?alt=json',
-      function( error, response, body ) {
-        if ( !error && response.statusCode === 200 ) {
-          var title, subtitle, supporting_text;
-          try {
-            var data = JSON.parse( body );
-            title = data.feed.entry[1].content.$t;
-            subtitle = data.feed.entry[3].content.$t;
-            supporting_text = data.feed.entry[5].content.$t;
+  function returnPhotosToClient( photos, req, res ) {
+    var cellWidth;
+    var cellWidthTablet;
+    var cellWidthPhone;
+
+    var desiredLength = Number( req.query.num );
+
+    if ( desiredLength > 0 ) {
+      for ( var i = 0; photos.length < desiredLength; i++ ) {
+        // add photos until we have what we want
+        photos.push(
+          {
+            id: 'placeholder' + i,
+            imageMediaMetadata: {
+              height: 600,
+              width: 900
+            }
           }
-          catch(e){ console.log(e); return; }
-          app.locals.title = title;
-          app.locals.subtitle = subtitle;
-          app.locals.supporting_text = supporting_text;
-        }
+        );
+      }
+    }
+
+    var count = photos.length;
+    if ( count < 4 ) {
+      cellWidth = 2;
+      cellWidthTablet = 2;
+      cellWidthPhone = 2;
+    }
+    else if ( count < 8 ) {
+      cellWidth = 2;
+      cellWidthTablet = 2;
+      cellWidthPhone = 1;
+    }
+    else if ( count < 12 ) {
+      cellWidth = 2;
+      cellWidthTablet = 1;
+      cellWidthPhone = 1;
+    }
+    else {
+      cellWidth = 1;
+      cellWidthTablet = 1;
+      cellWidthPhone = 1;
+    }
+    res.render('gallery',
+      {
+        photos: photos,
+        cellWidth: cellWidth,
+        cellWidthTablet: cellWidthTablet,
+        cellWidthPhone: cellWidthPhone
       }
     );
+  }
+
+  function preCacheImages() {
+    _getStringsFromSpreadsheet();
 
     getPhotosFromGoogleDrive(
       function( photos ) {
         async.eachSeries(
           photos,
           _preCacheOnePhoto,
-          function() { /*console.log( 'pre-cache done...'); */setTimeout( preCacheImages, REFRESH_INTERVAL ); }  
+          function() { setTimeout( preCacheImages, REFRESH_INTERVAL ); }  
         );
       }
     );
@@ -280,6 +284,26 @@ function initializeApp( oauth2Client ) {
         );
       }
     }
+
+    function _getStringsFromSpreadsheet() {
+      request('https://spreadsheets.google.com/feeds/cells/' + STRING_SHEET_ID + '/od6/public/full?alt=json',
+        function( error, response, body ) {
+          if ( !error && response.statusCode === 200 ) {
+            var title, subtitle, supporting_text;
+            try {
+              var data = JSON.parse( body );
+              title = data.feed.entry[ TITLE_ENTRY ].content.$t;
+              subtitle = data.feed.entry[ SUBTITLE_ENTRY ].content.$t;
+              supporting_text = data.feed.entry[ SUPPORTING_TEXT_ENTRY ].content.$t;
+            }
+            catch(e){ console.log(e); return; }
+            app.locals.title = title;
+            app.locals.subtitle = subtitle;
+            app.locals.supporting_text = supporting_text;
+          }
+        }
+      );
+    }
   }
 
   function sendError( response, errMsg ) {
@@ -327,7 +351,8 @@ function initializeApp( oauth2Client ) {
           return;
         }
         results.forEach( __processPhotos );
-        callback( results.filter( __filterPhotos ).sort( __sortPhotos ) );
+        mostRecentPhotos = results.filter( __filterPhotos ).sort( __sortPhotos );
+        callback( mostRecentPhotos );
       }
 
       function __processPhotos( item ) {
