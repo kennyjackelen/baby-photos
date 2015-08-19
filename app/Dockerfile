@@ -6,6 +6,10 @@ RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-
 # Install Node.js and npm
 RUN     yum install -y npm
 RUN     yum install -y git
+RUN     yum install -y tar
+RUN     yum install -y bzip2
+RUN     yum install -y freetype
+RUN     yum install -y fontconfig
 
 RUN npm install -g forever
 RUN npm install -g bower
