@@ -30,39 +30,60 @@ function getOnePhoto( id, w, h, callback ) {
   var filenameResized = CACHE_DIR + '/' + id + '-' + fileSuffix + '.jpg';
   var filenameFull = CACHE_DIR + '/' + id + '-full.jpg';
 
-  fs.readFile(
-    filenameResized,
-    function ( err, data ) {
-      if ( err ) {
-        // resized photo didn't exist, look for a full-size one
-        fs.readFile(
-          filenameFull,
-          function ( err, data ) {
-            if ( err ) {
-              // full-size photo didn't exist, pull from web
-              _getPhotoFromWeb( id,
-                function ( err, data ) {
-                  if ( err ) {
-                    callback( err );
-                  }
-                  if ( isFullImage ) {
-                    callback( null, data);
-                  }
-                  else {
-                    formatter.resize( data, w, h, _writeToFile );
-                  }
-                }
-              );
-              return;
-            }
-            formatter.resize( data, w, h, _writeToFile );
-          }
-        );
+  fs.readFile( filenameResized, _gotResizedFile );
+
+  function _gotResizedFile( err, data ) {
+    if ( err ) {
+      // The resized image didn't exist on disk.
+      // See if the full size image is on disk instead.
+      _lookForFullSizeOnDisk();
+      return;
+    }
+    // The resized image already existed on disk. Send it back.
+    callback( null, data );
+  }
+
+  function _lookForFullSizeOnDisk() {
+    fs.readFile( filenameFull, _gotFullSizeFile );
+  }
+
+  function _gotFullSizeFile( err, data ) {
+    if ( err ) {
+      // The full size image didn't exist on disk.
+      // Get it from the web.
+      _getPhotoFromWeb( id, _gotPhotoFromWeb );
+    }
+    // The full size image already existed on disk, but the resized image didn't.
+    // Resize the full one, then save it to disk and send it back.
+    formatter.resize( data, w, h, _writeToFile );
+  }
+
+  function _getPhotoFromWeb( id, callback ) {
+    var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
+    request( options, function (error, response, body) {
+      if (!error && response.statusCode === 200) {
+        _rotateImage( id, body, _rotatedImage);
         return;
       }
-      callback( null, data );
+      callback( 'Error loading photo from web: ' + error );
+    });
+  }
+
+  function _gotPhotoFromWeb( err, data ) {
+    if ( err ) {
+      // Something went wrong with the web request.
+      callback( err );
     }
-  );
+    // We have the full size image now, and it's already saved to disk.
+    if ( isFullImage ) {
+      // If this is all we needed, just send it back.
+      callback( null, data);
+    }
+    else {
+      // Resize the image, then save it to disk and send it back.
+      formatter.resize( data, w, h, _writeToFile );
+    }
+  }
 
   function _writeToFile( err, imageBuffer ) {
     if ( err ) {
@@ -70,22 +91,6 @@ function getOnePhoto( id, w, h, callback ) {
       return;
     }
     formatter.save( imageBuffer, filenameResized, callback );
-  }
-
-  function _getPhotoFromWeb( id, callback ) {
-    var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
-    request( options, function (error, response, body) {
-      if (!error && response.statusCode === 200) {
-        _rotateImage( id, body, function( err, buffer ) {
-          if ( err ) {
-            callback( err );
-          }
-          formatter.save( buffer, filenameFull, callback );
-        });
-        return;
-      }
-      callback( 'Error loading photo from web: ' + error );
-    });
   }
 
   function _rotateImage( id, buffer, callback ) {
@@ -103,6 +108,13 @@ function getOnePhoto( id, w, h, callback ) {
         formatter.rotate( buffer, callback );
       }
     }
+  }
+
+  function _rotatedImage( err, buffer ) {
+    if ( err ) {
+      callback( err );
+    }
+    formatter.save( buffer, filenameFull, callback );
   }
 }
 
