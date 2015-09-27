@@ -5,21 +5,22 @@ var hbs = require('hbs');
 var fs = require('fs');
 var googleAuth = require('google-auth-library');
 var async = require('async');
-var google = require('googleapis');
 var request = require('request');
-var lwip = require('lwip');
-var imagemin = require('imagemin');
 var moment = require('moment');
 
 var PORT = 8080;
-var CACHE_DIR = '/data/photocache';
 var REFRESH_INTERVAL = 5 * 60 * 1000;
 var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
 var STRING_SHEET_ID = '1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8';
+var DRIVE_FOLDER_ID = '0B3JoT2zDJB9qfkhmNXN5TVd1NWN6S3ZiaUJGTkozRGZKX1FoaVROdWxlQnZrTXZUalRCZ2c';
+
 var TITLE_ENTRY = 1;
 var SUBTITLE_ENTRY = 3;
 var SUPPORTING_TEXT_ENTRY = 5;
+
+// This should stay in sync with the constant in the client-side JS (photoswipe-support.js).
+var PHOTO_CACHE_VERSION = '2';
 
 initializeCredentials();
 
@@ -57,14 +58,16 @@ function initializeCredentials() {
       var auth = new googleAuth();
       var oauth2Client = new auth.OAuth2(clientId, clientSecret);
       oauth2Client.credentials = results.token;
-      initializeApp( oauth2Client );
+      var drive = require('./lib/drive.js')( oauth2Client );
+      initializeApp( drive );
     }
   );
 }
 
-function initializeApp( oauth2Client ) {
+function initializeApp( drive ) {
 
   var app = express();
+  var getPhoto = require('./lib/photogetter.js')( drive );
   var mostRecentPhotos = [];
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
@@ -76,7 +79,9 @@ function initializeApp( oauth2Client ) {
 
   app.locals.thumbSize1x = 250; 
   app.locals.thumbSize1_5x = 1.5 * app.locals.thumbSize1x; 
-  app.locals.thumbSize2x = 2 * app.locals.thumbSize1x; 
+  app.locals.thumbSize2x = 2 * app.locals.thumbSize1x;
+
+  app.locals.photoCacheVersion = PHOTO_CACHE_VERSION;
 
   app.set('views', __dirname + '/build/views');
   app.set('view engine', 'hbs');
@@ -118,18 +123,18 @@ function initializeApp( oauth2Client ) {
     );  
   });
 
-  app.get('/photo/placeholder\\d+/:width/:height', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/placeholder\\d+/:width/:height', function (req, res) {
     request.get('http://lorempixel.com/' + req.params.width + '/' + req.params.height + '/animals/')
       .pipe( res );
   });
 
-  app.get('/photo/placeholder\\d+/full', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/placeholder\\d+/full', function (req, res) {
     request.get('http://lorempixel.com/900/600/animals/')
       .pipe( res );
   });
 
-  app.get('/photo/:imageID/full', function (req, res) {
-    getOnePhoto( req.params.imageID, 0, 0,
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/full', function (req, res) {
+    getPhoto( req.params.imageID, 0, 0,
       function( error, imageBuffer ) {
         if ( error ) {
           sendError( res, error );
@@ -141,7 +146,7 @@ function initializeApp( oauth2Client ) {
       });
   });
 
-  app.get('/photo/:imageID/:width/:height', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/:width/:height', function (req, res) {
     if ( isNaN( Number( req.params.width ) ) ) {
       sendError( res, 'Invalid width value.');
       return;
@@ -150,7 +155,7 @@ function initializeApp( oauth2Client ) {
       sendError( res, 'Invalid height value.');
       return;
     }
-    getOnePhoto( req.params.imageID, Number( req.params.width ), Number( req.params.height ),
+    getPhoto( req.params.imageID, Number( req.params.width ), Number( req.params.height ),
       function( error, imageBuffer ) {
         if ( error ) {
           sendError( res, error );
@@ -273,13 +278,13 @@ function initializeApp( oauth2Client ) {
           w = Math.floor( ratio * photo.imageMediaMetadata.width );
           h = Math.floor( ratio * photo.imageMediaMetadata.height );
         }
-        getOnePhoto( photo.id, w, h,
+        getPhoto( photo.id, w, h,
           function() { callback(); }
         );
       }
 
       function __preCacheOneThumbnail( thumbSize, callback ) {
-        getOnePhoto( photo.id, thumbSize, thumbSize,
+        getPhoto( photo.id, thumbSize, thumbSize,
           function() { callback(); }
         );
       }
@@ -311,184 +316,54 @@ function initializeApp( oauth2Client ) {
   }
 
   function getPhotosFromGoogleDrive( callback, errCallback ) {
-    var service = google.drive('v2');
+    drive.getPhotoList( DRIVE_FOLDER_ID, _gotPhotos );
 
-    service.children.list(
-      {
-        folderId: '0B3JoT2zDJB9qfkhmNXN5TVd1NWN6S3ZiaUJGTkozRGZKX1FoaVROdWxlQnZrTXZUalRCZ2c',
-        auth: oauth2Client,
-        maxResults: 1000
-      },
-      _digestListOfPhotos
-    );
-
-    function _digestListOfPhotos( err, response ) {
-      if (err) {
-        errCallback( 'The API returned an error: ' + err );
+    function _gotPhotos( err, results ) {
+      if ( err ) {
+        errCallback( err );
         return;
       }
-      async.map( response.items, __getPhoto, __gotPhotos );
+      results.forEach( _processPhotos );
+      mostRecentPhotos = results.filter( _filterPhotos ).sort( _sortPhotos );
+      callback( mostRecentPhotos );
+    }
 
-      function __getPhoto( item, callback ) {
-        service.files.get(
-          {
-            fileId: item.id,
-            auth: oauth2Client
-          },
-          function ___digestPhoto( err, response ) {
-            if (err) {
-              callback( 'The API returned an error: ' + err );
-              return;
-            }
-            callback( null, response );
-          }
-        );
+    function _processPhotos( item ) {
+      var dateStr;
+      try {
+        var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
+        dateStr = dateMoment.format('LL');
       }
-
-      function __gotPhotos( err, results ) {
-        if ( err ) {
-          errCallback( err );
-          return;
-        }
-        results.forEach( __processPhotos );
-        mostRecentPhotos = results.filter( __filterPhotos ).sort( __sortPhotos );
-        callback( mostRecentPhotos );
-      }
-
-      function __processPhotos( item ) {
-        var dateStr;
-        try {
-          var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
-          dateStr = dateMoment.format('LL');
-        }
-        catch ( e ) {}
-        item.caption = '';
-        if ( item.description ) {
-          item.caption = item.description;
-          if ( dateStr ) {
-            item.caption = item.caption + ' (' + dateStr + ')';
-          }
-        }
-        else if ( dateStr ) {
-          item.caption = dateStr;
+      catch ( e ) {}
+      item.caption = '';
+      if ( item.description ) {
+        item.caption = item.description;
+        if ( dateStr ) {
+          item.caption = item.caption + ' (' + dateStr + ')';
         }
       }
-
-      function __filterPhotos( item ) {
-        if ( item.explicitlyTrashed ) { return false; }
-        if ( item.mimeType !== 'image/jpeg' ) { return false; }
-        return true;
+      else if ( dateStr ) {
+        item.caption = dateStr;
       }
-
-      // Sort photos so the most recently taken photo comes first
-      function __sortPhotos( a, b ) {
-        var aDate = a.imageMediaMetadata.date;
-        var bDate = b.imageMediaMetadata.date;
-        return bDate.localeCompare( aDate );
+      if ( drive.needsRotation( item ) ) {
+        var originalWidth;
+        originalWidth = item.imageMediaMetadata.width;
+        item.imageMediaMetadata.width = item.imageMediaMetadata.height;
+        item.imageMediaMetadata.height = originalWidth;
       }
     }
-  }
-}
 
-function getOnePhoto( id, w, h, callback ) {
-  // This function gets the specified photo at the specified dimensions.
-  // It will check the local disk cache first, and pull the photo from Google
-  // if it can't find a suitable version locally.
-  // This function is the preferred way to get a photo by ID.
-  var isFullImage;
-  var fileSuffix;
-  if ( w === 0 && h === 0 ) {
-    isFullImage = true;
-    fileSuffix = 'full';
-  }
-  else {
-    fileSuffix = w + 'x' + h;
-  }
-  var filenameResized = CACHE_DIR + '/' + id + '-' + fileSuffix + '.jpg';
-  var filenameFull = CACHE_DIR + '/' + id + '-full.jpg';
-
-  fs.readFile(
-    filenameResized,
-    function ( err, data ) {
-      if ( err ) {
-        // resized photo didn't exist, look for a full-size one
-        fs.readFile(
-          filenameFull,
-          function ( err, data ) {
-            if ( err ) {
-              // full-size photo didn't exist, pull from web
-              _getPhotoFromWeb( id,
-                function ( err, data ) {
-                  if ( err ) {
-                    callback( err );
-                  }
-                  if ( isFullImage ) {
-                    callback( null, data);
-                  }
-                  else {
-                    _resizeImage( data, w, h, callback );
-                  }
-                }
-              );
-              return;
-            }
-            _resizeImage( data, w, h, callback );
-          }
-        );
-        return;
-      }
-      callback( null, data );
+    function _filterPhotos( item ) {
+      if ( item.explicitlyTrashed ) { return false; }
+      if ( item.mimeType !== 'image/jpeg' ) { return false; }
+      return true;
     }
-  );
 
-  function _getPhotoFromWeb( id, callback ) {
-    var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
-    request( options, function (error, response, body) {
-      if (!error && response.statusCode === 200) {
-        new imagemin()
-          .src( body )
-          .run( function( err, files ) {
-            if ( err ) {
-              callback( err );
-              return;
-            }
-            fs.writeFile( filenameFull, files[0].contents );
-            callback( null, files[0].contents );
-          });
-        return;
-      }
-      callback( 'Error loading photo from web: ' + error );
-    });
-  }
-
-  function _resizeImage( buffer, w, h, callback ) {
-    lwip.open( buffer, 'jpg', function( err, image ) {
-      if ( err ) {
-        callback( 'Error opening image buffer: ' + err );
-        return;
-      }
-      image.cover( w, h, function( err, image ) {
-        if ( err ) {
-          callback( 'Error resizing image: ' + err );
-          return;
-        }
-        image.toBuffer( 'jpg', function( err, buffer ) {
-          if ( err ) {
-            callback( 'Error converting image to JPG: ' + err );
-            return;
-          }
-          new imagemin()
-            .src( buffer )
-            .run( function( err, files ) {
-              if ( err ) {
-                callback( err );
-                return;
-              }
-              fs.writeFile( filenameResized, files[0].contents );
-              callback( null, files[0].contents );
-            });
-        });
-      });
-    }); 
+    // Sort photos so the most recently taken photo comes first
+    function _sortPhotos( a, b ) {
+      var aDate = a.imageMediaMetadata.date;
+      var bDate = b.imageMediaMetadata.date;
+      return bDate.localeCompare( aDate );
+    }
   }
 }
