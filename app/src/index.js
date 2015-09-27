@@ -21,6 +21,11 @@ var TITLE_ENTRY = 1;
 var SUBTITLE_ENTRY = 3;
 var SUPPORTING_TEXT_ENTRY = 5;
 
+// This should stay in sync with the constant in the client-side JS (photoswipe-support.js).
+var PHOTO_CACHE_VERSION = '2';
+
+var oauth2Client;
+
 initializeCredentials();
 
 function initializeCredentials() {
@@ -55,14 +60,14 @@ function initializeCredentials() {
       var clientSecret = results.credentials.installed.client_secret;
       var clientId = results.credentials.installed.client_id;
       var auth = new googleAuth();
-      var oauth2Client = new auth.OAuth2(clientId, clientSecret);
+      oauth2Client = new auth.OAuth2(clientId, clientSecret);
       oauth2Client.credentials = results.token;
-      initializeApp( oauth2Client );
+      initializeApp();
     }
   );
 }
 
-function initializeApp( oauth2Client ) {
+function initializeApp() {
 
   var app = express();
   var mostRecentPhotos = [];
@@ -76,7 +81,9 @@ function initializeApp( oauth2Client ) {
 
   app.locals.thumbSize1x = 250; 
   app.locals.thumbSize1_5x = 1.5 * app.locals.thumbSize1x; 
-  app.locals.thumbSize2x = 2 * app.locals.thumbSize1x; 
+  app.locals.thumbSize2x = 2 * app.locals.thumbSize1x;
+
+  app.locals.photoCacheVersion = PHOTO_CACHE_VERSION;
 
   app.set('views', __dirname + '/build/views');
   app.set('view engine', 'hbs');
@@ -118,17 +125,17 @@ function initializeApp( oauth2Client ) {
     );  
   });
 
-  app.get('/photo/placeholder\\d+/:width/:height', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/placeholder\\d+/:width/:height', function (req, res) {
     request.get('http://lorempixel.com/' + req.params.width + '/' + req.params.height + '/animals/')
       .pipe( res );
   });
 
-  app.get('/photo/placeholder\\d+/full', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/placeholder\\d+/full', function (req, res) {
     request.get('http://lorempixel.com/900/600/animals/')
       .pipe( res );
   });
 
-  app.get('/photo/:imageID/full', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/full', function (req, res) {
     getOnePhoto( req.params.imageID, 0, 0,
       function( error, imageBuffer ) {
         if ( error ) {
@@ -141,7 +148,7 @@ function initializeApp( oauth2Client ) {
       });
   });
 
-  app.get('/photo/:imageID/:width/:height', function (req, res) {
+  app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/:width/:height', function (req, res) {
     if ( isNaN( Number( req.params.width ) ) ) {
       sendError( res, 'Invalid width value.');
       return;
@@ -327,23 +334,7 @@ function initializeApp( oauth2Client ) {
         errCallback( 'The API returned an error: ' + err );
         return;
       }
-      async.map( response.items, __getPhoto, __gotPhotos );
-
-      function __getPhoto( item, callback ) {
-        service.files.get(
-          {
-            fileId: item.id,
-            auth: oauth2Client
-          },
-          function ___digestPhoto( err, response ) {
-            if (err) {
-              callback( 'The API returned an error: ' + err );
-              return;
-            }
-            callback( null, response );
-          }
-        );
-      }
+      async.map( response.items, getPhotoObject, __gotPhotos );
 
       function __gotPhotos( err, results ) {
         if ( err ) {
@@ -357,6 +348,7 @@ function initializeApp( oauth2Client ) {
 
       function __processPhotos( item ) {
         var dateStr;
+        var needsRotation;
         try {
           var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
           dateStr = dateMoment.format('LL');
@@ -371,6 +363,18 @@ function initializeApp( oauth2Client ) {
         }
         else if ( dateStr ) {
           item.caption = dateStr;
+        }
+        try {
+          needsRotation = item.imageMediaMetadata.rotation;
+        }
+        catch ( e ) {
+          needsRotation = false;
+        }
+        if ( needsRotation ) {
+          var originalWidth;
+          originalWidth = item.imageMediaMetadata.width;
+          item.imageMediaMetadata.width = item.imageMediaMetadata.height;
+          item.imageMediaMetadata.height = originalWidth;
         }
       }
 
@@ -388,6 +392,23 @@ function initializeApp( oauth2Client ) {
       }
     }
   }
+}
+
+function getPhotoObject( item, callback ) {
+  var service = google.drive('v2');
+  service.files.get(
+    {
+      fileId: item.id,
+      auth: oauth2Client
+    },
+    function ___digestPhoto( err, response ) {
+      if (err) {
+        callback( 'The API returned an error: ' + err );
+        return;
+      }
+      callback( null, response );
+    }
+  );
 }
 
 function getOnePhoto( id, w, h, callback ) {
@@ -445,36 +466,92 @@ function getOnePhoto( id, w, h, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
     request( options, function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        new imagemin()
-          .src( body )
-          .run( function( err, files ) {
-            if ( err ) {
-              callback( err );
-              return;
-            }
-            fs.writeFile( filenameFull, files[0].contents );
-            callback( null, files[0].contents );
-          });
+        _rotateImage( id, body, function( err, buffer ) {
+          if ( err ) {
+            callback( err );
+          }
+          new imagemin()
+            .src( buffer )
+            .run( function( err, files ) {
+              if ( err ) {
+                callback( err );
+                return;
+              }
+              fs.writeFile( filenameFull, files[0].contents );
+              callback( null, files[0].contents );
+            });
+        });
         return;
       }
       callback( 'Error loading photo from web: ' + error );
     });
   }
 
+  function _rotateImage( id, buffer, callback ) {
+    var service = google.drive('v2');
+    service.files.get(
+      {
+        fileId: id,
+        auth: oauth2Client
+      },
+      function __digestPhoto( err, response ) {
+        if (err) {
+          callback( 'The API returned an error: ' + err );
+          return;
+        }
+        var needsRotation;
+        try {
+          needsRotation = response.imageMediaMetadata.rotation;
+        }
+        catch ( e ) {
+          needsRotation = false;
+        }
+        if ( !needsRotation ) {
+          callback( null, buffer );
+        }
+        else {
+          lwip.open( buffer, 'jpg', function( err, image ){
+            if ( err ) {
+              callback( '[_rotateImage] Error opening image buffer: ' + err );
+            }
+            else {
+              image.rotate( 90, function( err, image ){
+                if ( err ) {
+                  callback( '[_rotateImage] Error rotating image: ' + err );
+                }
+                else {
+                  image.toBuffer( 'jpg', function( err, bufferOut ) {
+                    if ( err ) {
+                      callback( '[_rotateImage] Error converting image to JPG: ' + err );
+                      return;
+                    }
+                    else {
+                      callback( null, bufferOut );
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      }
+    );
+  }
+
   function _resizeImage( buffer, w, h, callback ) {
     lwip.open( buffer, 'jpg', function( err, image ) {
       if ( err ) {
-        callback( 'Error opening image buffer: ' + err );
+        callback( '[_resizeImage] Error opening image buffer: ' + err );
         return;
       }
       image.cover( w, h, function( err, image ) {
         if ( err ) {
-          callback( 'Error resizing image: ' + err );
+          callback( '[_resizeImage] Error resizing image: ' + err );
           return;
         }
         image.toBuffer( 'jpg', function( err, buffer ) {
           if ( err ) {
-            callback( 'Error converting image to JPG: ' + err );
+            callback( '[_resizeImage] Error converting image to JPG: ' + err );
             return;
           }
           new imagemin()

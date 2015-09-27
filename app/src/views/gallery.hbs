@@ -1,11 +1,11 @@
 <div class="mdl-grid mdl-grid--no-spacing my-gallery">
   {{#each photos}}
   <figure class="mdl-cell mdl-cell--{{../cellWidth}}-col mdl-cell--{{../cellWidthPhone}}-col-phone mdl-cell--{{../cellWidthTablet}}-col-tablet">
-  <a href="photo/{{id}}/full" data-id="{{id}}" data-size="{{imageMediaMetadata.width}}x{{imageMediaMetadata.height}}" data-caption="{{caption}}">
+  <a href="photo/v{{@photoCacheVersion}}/{{id}}/full" data-id="{{id}}" data-size="{{imageMediaMetadata.width}}x{{imageMediaMetadata.height}}" data-caption="{{caption}}">
   <img class="thumbnail" title="{{caption}}"
-       src="photo/{{id}}/{{@thumbSize1x}}/{{@thumbSize1x}}" 
-       srcset="photo/{{id}}/{{@thumbSize1_5x}}/{{@thumbSize1_5x}} 1.5x,
-               photo/{{id}}/{{@thumbSize2x}}/{{@thumbSize2x}} 2x">
+       src="photo/v{{@photoCacheVersion}}/{{id}}/{{@thumbSize1x}}/{{@thumbSize1x}}" 
+       srcset="photo/v{{@photoCacheVersion}}/{{id}}/{{@thumbSize1_5x}}/{{@thumbSize1_5x}} 1.5x,
+               photo/v{{@photoCacheVersion}}/{{id}}/{{@thumbSize2x}}/{{@thumbSize2x}} 2x">
   </a>
   </figure>
   {{/each}}

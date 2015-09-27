@@ -1,6 +1,9 @@
 /* adapted from http://photoswipe.com/documentation/getting-started.html */
 
 var initPhotoSwipeFromDOM = function(gallerySelector) {
+
+    // This should stay in sync with the constant in the server-side JS.
+    var PHOTO_CACHE_VERSION = '2';
     
     // There are 5 image sizes for each image: full size, 75%, 50%, 25%, 15%
     var ratios = [ 0.75, 0.5, 0.25, 0.15 ];
@@ -51,7 +54,7 @@ var initPhotoSwipeFromDOM = function(gallerySelector) {
             var smallestRatio = ratios[ ratios.length - 1 ];
             var smallW = Math.floor( smallestRatio * item.originalImage.w );
             var smallH = Math.floor( smallestRatio * item.originalImage.h );
-            item.msrc = 'photo/' + item.originalImage.id + '/' + smallW + '/' + smallH;
+            item.msrc = 'photo/v2/' + item.originalImage.id + '/' + smallW + '/' + smallH;
 
             item.el = figureEl; // save link to element for getThumbBoundsFn
             items.push(item);
@@ -241,7 +244,7 @@ var initPhotoSwipeFromDOM = function(gallerySelector) {
             else {
                 item.w = Math.floor( ratio * item.originalImage.w );
                 item.h = Math.floor( ratio * item.originalImage.h );
-                item.src = 'photo/' + item.originalImage.id + '/' + item.w + '/' + item.h;
+                item.src = 'photo/v' + PHOTO_CACHE_VERSION + '/' + item.originalImage.id + '/' + item.w + '/' + item.h;
             }
         });
 
