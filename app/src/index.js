@@ -7,9 +7,8 @@ var googleAuth = require('google-auth-library');
 var async = require('async');
 var google = require('googleapis');
 var request = require('request');
-var lwip = require('lwip');
-var imagemin = require('imagemin');
 var moment = require('moment');
+var formatter = require('./lib/photoformat.js');
 
 var PORT = 8080;
 var CACHE_DIR = '/data/photocache';
@@ -447,13 +446,13 @@ function getOnePhoto( id, w, h, callback ) {
                     callback( null, data);
                   }
                   else {
-                    _resizeImage( data, w, h, callback );
+                    formatter.resize( data, w, h, _writeToFile );
                   }
                 }
               );
               return;
             }
-            _resizeImage( data, w, h, callback );
+            formatter.resize( data, w, h, _writeToFile );
           }
         );
         return;
@@ -461,6 +460,14 @@ function getOnePhoto( id, w, h, callback ) {
       callback( null, data );
     }
   );
+
+  function _writeToFile( err, imageBuffer ) {
+    if ( err ) {
+      callback( err );
+      return;
+    }
+    formatter.save( imageBuffer, filenameResized, callback );
+  }
 
   function _getPhotoFromWeb( id, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
@@ -470,16 +477,7 @@ function getOnePhoto( id, w, h, callback ) {
           if ( err ) {
             callback( err );
           }
-          new imagemin()
-            .src( buffer )
-            .run( function( err, files ) {
-              if ( err ) {
-                callback( err );
-                return;
-              }
-              fs.writeFile( filenameFull, files[0].contents );
-              callback( null, files[0].contents );
-            });
+          formatter.save( buffer, filenameFull, callback );
         });
         return;
       }
@@ -510,62 +508,10 @@ function getOnePhoto( id, w, h, callback ) {
           callback( null, buffer );
         }
         else {
-          lwip.open( buffer, 'jpg', function( err, image ){
-            if ( err ) {
-              callback( '[_rotateImage] Error opening image buffer: ' + err );
-            }
-            else {
-              image.rotate( 90, function( err, image ){
-                if ( err ) {
-                  callback( '[_rotateImage] Error rotating image: ' + err );
-                }
-                else {
-                  image.toBuffer( 'jpg', function( err, bufferOut ) {
-                    if ( err ) {
-                      callback( '[_rotateImage] Error converting image to JPG: ' + err );
-                      return;
-                    }
-                    else {
-                      callback( null, bufferOut );
-                    }
-                  });
-                }
-              });
-            }
-          });
+          formatter.rotate( buffer, callback );
         }
       }
     );
   }
 
-  function _resizeImage( buffer, w, h, callback ) {
-    lwip.open( buffer, 'jpg', function( err, image ) {
-      if ( err ) {
-        callback( '[_resizeImage] Error opening image buffer: ' + err );
-        return;
-      }
-      image.cover( w, h, function( err, image ) {
-        if ( err ) {
-          callback( '[_resizeImage] Error resizing image: ' + err );
-          return;
-        }
-        image.toBuffer( 'jpg', function( err, buffer ) {
-          if ( err ) {
-            callback( '[_resizeImage] Error converting image to JPG: ' + err );
-            return;
-          }
-          new imagemin()
-            .src( buffer )
-            .run( function( err, files ) {
-              if ( err ) {
-                callback( err );
-                return;
-              }
-              fs.writeFile( filenameResized, files[0].contents );
-              callback( null, files[0].contents );
-            });
-        });
-      });
-    }); 
-  }
 }
