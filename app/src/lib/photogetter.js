@@ -52,6 +52,7 @@ function getOnePhoto( id, w, h, callback ) {
       // The full size image didn't exist on disk.
       // Get it from the web.
       _getPhotoFromWeb( id, _gotPhotoFromWeb );
+      return;
     }
     // The full size image already existed on disk, but the resized image didn't.
     // Resize the full one, then save it to disk and send it back.
@@ -62,7 +63,7 @@ function getOnePhoto( id, w, h, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
     request( options, function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        _rotateImage( id, body, _rotatedImage);
+        _rotateImage( id, body, _rotatedImage );
         return;
       }
       callback( 'Error loading photo from web: ' + error );
@@ -73,6 +74,7 @@ function getOnePhoto( id, w, h, callback ) {
     if ( err ) {
       // Something went wrong with the web request.
       callback( err );
+      return;
     }
     // We have the full size image now, and it's already saved to disk.
     if ( isFullImage ) {
@@ -113,6 +115,7 @@ function getOnePhoto( id, w, h, callback ) {
   function _rotatedImage( err, buffer ) {
     if ( err ) {
       callback( err );
+      return;
     }
     formatter.save( buffer, filenameFull, callback );
   }
