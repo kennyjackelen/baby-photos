@@ -5,7 +5,6 @@ var hbs = require('hbs');
 var fs = require('fs');
 var googleAuth = require('google-auth-library');
 var async = require('async');
-var google = require('googleapis');
 var request = require('request');
 var moment = require('moment');
 var formatter = require('./lib/photoformat.js');
@@ -16,6 +15,8 @@ var REFRESH_INTERVAL = 5 * 60 * 1000;
 var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
 var STRING_SHEET_ID = '1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8';
+var DRIVE_FOLDER_ID = '0B3JoT2zDJB9qfkhmNXN5TVd1NWN6S3ZiaUJGTkozRGZKX1FoaVROdWxlQnZrTXZUalRCZ2c';
+
 var TITLE_ENTRY = 1;
 var SUBTITLE_ENTRY = 3;
 var SUPPORTING_TEXT_ENTRY = 5;
@@ -23,7 +24,7 @@ var SUPPORTING_TEXT_ENTRY = 5;
 // This should stay in sync with the constant in the client-side JS (photoswipe-support.js).
 var PHOTO_CACHE_VERSION = '2';
 
-var oauth2Client;
+var drive;
 
 initializeCredentials();
 
@@ -59,8 +60,9 @@ function initializeCredentials() {
       var clientSecret = results.credentials.installed.client_secret;
       var clientId = results.credentials.installed.client_id;
       var auth = new googleAuth();
-      oauth2Client = new auth.OAuth2(clientId, clientSecret);
+      var oauth2Client = new auth.OAuth2(clientId, clientSecret);
       oauth2Client.credentials = results.token;
+      drive = require('./lib/drive.js')( oauth2Client );
       initializeApp();
     }
   );
@@ -317,97 +319,63 @@ function initializeApp() {
   }
 
   function getPhotosFromGoogleDrive( callback, errCallback ) {
-    var service = google.drive('v2');
+    drive.getPhotoList( DRIVE_FOLDER_ID, _gotPhotos );
 
-    service.children.list(
-      {
-        folderId: '0B3JoT2zDJB9qfkhmNXN5TVd1NWN6S3ZiaUJGTkozRGZKX1FoaVROdWxlQnZrTXZUalRCZ2c',
-        auth: oauth2Client,
-        maxResults: 1000
-      },
-      _digestListOfPhotos
-    );
-
-    function _digestListOfPhotos( err, response ) {
-      if (err) {
-        errCallback( 'The API returned an error: ' + err );
+    function _gotPhotos( err, results ) {
+      if ( err ) {
+        errCallback( err );
         return;
       }
-      async.map( response.items, getPhotoObject, __gotPhotos );
+      results.forEach( _processPhotos );
+      mostRecentPhotos = results.filter( _filterPhotos ).sort( _sortPhotos );
+      callback( mostRecentPhotos );
+    }
 
-      function __gotPhotos( err, results ) {
-        if ( err ) {
-          errCallback( err );
-          return;
-        }
-        results.forEach( __processPhotos );
-        mostRecentPhotos = results.filter( __filterPhotos ).sort( __sortPhotos );
-        callback( mostRecentPhotos );
+    function _processPhotos( item ) {
+      var dateStr;
+      var needsRotation;
+      try {
+        var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
+        dateStr = dateMoment.format('LL');
       }
-
-      function __processPhotos( item ) {
-        var dateStr;
-        var needsRotation;
-        try {
-          var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
-          dateStr = dateMoment.format('LL');
-        }
-        catch ( e ) {}
-        item.caption = '';
-        if ( item.description ) {
-          item.caption = item.description;
-          if ( dateStr ) {
-            item.caption = item.caption + ' (' + dateStr + ')';
-          }
-        }
-        else if ( dateStr ) {
-          item.caption = dateStr;
-        }
-        try {
-          needsRotation = item.imageMediaMetadata.rotation;
-        }
-        catch ( e ) {
-          needsRotation = false;
-        }
-        if ( needsRotation ) {
-          var originalWidth;
-          originalWidth = item.imageMediaMetadata.width;
-          item.imageMediaMetadata.width = item.imageMediaMetadata.height;
-          item.imageMediaMetadata.height = originalWidth;
+      catch ( e ) {}
+      item.caption = '';
+      if ( item.description ) {
+        item.caption = item.description;
+        if ( dateStr ) {
+          item.caption = item.caption + ' (' + dateStr + ')';
         }
       }
-
-      function __filterPhotos( item ) {
-        if ( item.explicitlyTrashed ) { return false; }
-        if ( item.mimeType !== 'image/jpeg' ) { return false; }
-        return true;
+      else if ( dateStr ) {
+        item.caption = dateStr;
       }
-
-      // Sort photos so the most recently taken photo comes first
-      function __sortPhotos( a, b ) {
-        var aDate = a.imageMediaMetadata.date;
-        var bDate = b.imageMediaMetadata.date;
-        return bDate.localeCompare( aDate );
+      try {
+        needsRotation = item.imageMediaMetadata.rotation;
       }
+      catch ( e ) {
+        needsRotation = false;
+      }
+      if ( needsRotation ) {
+        var originalWidth;
+        originalWidth = item.imageMediaMetadata.width;
+        item.imageMediaMetadata.width = item.imageMediaMetadata.height;
+        item.imageMediaMetadata.height = originalWidth;
+      }
+    }
+
+    function _filterPhotos( item ) {
+      if ( item.explicitlyTrashed ) { return false; }
+      if ( item.mimeType !== 'image/jpeg' ) { return false; }
+      return true;
+    }
+
+    // Sort photos so the most recently taken photo comes first
+    function _sortPhotos( a, b ) {
+      var aDate = a.imageMediaMetadata.date;
+      var bDate = b.imageMediaMetadata.date;
+      return bDate.localeCompare( aDate );
     }
   }
-}
-
-function getPhotoObject( item, callback ) {
-  var service = google.drive('v2');
-  service.files.get(
-    {
-      fileId: item.id,
-      auth: oauth2Client
-    },
-    function ___digestPhoto( err, response ) {
-      if (err) {
-        callback( 'The API returned an error: ' + err );
-        return;
-      }
-      callback( null, response );
-    }
-  );
 }
 
 function getOnePhoto( id, w, h, callback ) {
@@ -486,32 +454,27 @@ function getOnePhoto( id, w, h, callback ) {
   }
 
   function _rotateImage( id, buffer, callback ) {
-    var service = google.drive('v2');
-    service.files.get(
-      {
-        fileId: id,
-        auth: oauth2Client
-      },
-      function __digestPhoto( err, response ) {
-        if (err) {
-          callback( 'The API returned an error: ' + err );
-          return;
-        }
-        var needsRotation;
-        try {
-          needsRotation = response.imageMediaMetadata.rotation;
-        }
-        catch ( e ) {
-          needsRotation = false;
-        }
-        if ( !needsRotation ) {
-          callback( null, buffer );
-        }
-        else {
-          formatter.rotate( buffer, callback );
-        }
+    drive.getPhotoObject( id, _gotPhotoObject );
+
+    function _gotPhotoObject( err, photo ) {
+      if ( err ) {
+        callback( err );
+        return;
       }
-    );
+      var needsRotation;
+      try {
+        needsRotation = photo.imageMediaMetadata.rotation;
+      }
+      catch ( e ) {
+        needsRotation = false;
+      }
+      if ( !needsRotation ) {
+        callback( null, buffer );
+      }
+      else {
+        formatter.rotate( buffer, callback );
+      }
+    }
   }
 
 }
