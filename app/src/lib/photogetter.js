@@ -63,7 +63,7 @@ function getOnePhoto( id, w, h, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
     request( options, function (error, response, body) {
       if (!error && response.statusCode === 200) {
-        _rotateImage( id, body, _rotatedImage );
+        _rotateImage( id, body, callback );
         return;
       }
       callback( 'Error loading photo from web: ' + error );
@@ -96,9 +96,9 @@ function getOnePhoto( id, w, h, callback ) {
   }
 
   function _rotateImage( id, buffer, callback ) {
-    drive.getPhotoObject( id, _gotPhotoObject );
+    drive.getPhotoObject( id, __gotPhotoObject );
 
-    function _gotPhotoObject( err, photo ) {
+    function __gotPhotoObject( err, photo ) {
       if ( err ) {
         callback( err );
         return;
@@ -107,17 +107,17 @@ function getOnePhoto( id, w, h, callback ) {
         callback( null, buffer );
       }
       else {
-        formatter.rotate( buffer, callback );
+        formatter.rotate( buffer, __rotatedImage );
       }
     }
-  }
 
-  function _rotatedImage( err, buffer ) {
-    if ( err ) {
-      callback( err );
-      return;
+    function __rotatedImage( err, buffer ) {
+      if ( err ) {
+        callback( err );
+        return;
+      }
+      formatter.save( buffer, filenameFull, callback );
     }
-    formatter.save( buffer, filenameFull, callback );
   }
 }
 
