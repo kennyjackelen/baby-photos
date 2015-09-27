@@ -9,7 +9,8 @@ function initialize( myOauth2Client ) {
   oauth2Client = myOauth2Client;
   return {
     getPhotoObject: getPhotoObject,
-    getPhotoList: getPhotoList
+    getPhotoList: getPhotoList,
+    needsRotation: needsRotation
   };
 }
 
@@ -61,6 +62,15 @@ function getPhotoList( folderID, callback ) {
       return;
     }
     callback( null, photos );
+  }
+}
+
+function needsRotation( photoObject ) {
+  try {
+    return Boolean( photoObject.imageMediaMetadata.rotation );
+  }
+  catch ( e ) {
+    return false;
   }
 }
 

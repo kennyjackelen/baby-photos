@@ -7,10 +7,8 @@ var googleAuth = require('google-auth-library');
 var async = require('async');
 var request = require('request');
 var moment = require('moment');
-var formatter = require('./lib/photoformat.js');
 
 var PORT = 8080;
-var CACHE_DIR = '/data/photocache';
 var REFRESH_INTERVAL = 5 * 60 * 1000;
 var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
@@ -23,8 +21,6 @@ var SUPPORTING_TEXT_ENTRY = 5;
 
 // This should stay in sync with the constant in the client-side JS (photoswipe-support.js).
 var PHOTO_CACHE_VERSION = '2';
-
-var drive;
 
 initializeCredentials();
 
@@ -62,15 +58,16 @@ function initializeCredentials() {
       var auth = new googleAuth();
       var oauth2Client = new auth.OAuth2(clientId, clientSecret);
       oauth2Client.credentials = results.token;
-      drive = require('./lib/drive.js')( oauth2Client );
-      initializeApp();
+      var drive = require('./lib/drive.js')( oauth2Client );
+      initializeApp( drive );
     }
   );
 }
 
-function initializeApp() {
+function initializeApp( drive ) {
 
   var app = express();
+  var getPhoto = require('./lib/photogetter.js')( drive );
   var mostRecentPhotos = [];
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
@@ -137,7 +134,7 @@ function initializeApp() {
   });
 
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/full', function (req, res) {
-    getOnePhoto( req.params.imageID, 0, 0,
+    getPhoto( req.params.imageID, 0, 0,
       function( error, imageBuffer ) {
         if ( error ) {
           sendError( res, error );
@@ -158,7 +155,7 @@ function initializeApp() {
       sendError( res, 'Invalid height value.');
       return;
     }
-    getOnePhoto( req.params.imageID, Number( req.params.width ), Number( req.params.height ),
+    getPhoto( req.params.imageID, Number( req.params.width ), Number( req.params.height ),
       function( error, imageBuffer ) {
         if ( error ) {
           sendError( res, error );
@@ -281,13 +278,13 @@ function initializeApp() {
           w = Math.floor( ratio * photo.imageMediaMetadata.width );
           h = Math.floor( ratio * photo.imageMediaMetadata.height );
         }
-        getOnePhoto( photo.id, w, h,
+        getPhoto( photo.id, w, h,
           function() { callback(); }
         );
       }
 
       function __preCacheOneThumbnail( thumbSize, callback ) {
-        getOnePhoto( photo.id, thumbSize, thumbSize,
+        getPhoto( photo.id, thumbSize, thumbSize,
           function() { callback(); }
         );
       }
@@ -333,7 +330,6 @@ function initializeApp() {
 
     function _processPhotos( item ) {
       var dateStr;
-      var needsRotation;
       try {
         var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
         dateStr = dateMoment.format('LL');
@@ -349,13 +345,7 @@ function initializeApp() {
       else if ( dateStr ) {
         item.caption = dateStr;
       }
-      try {
-        needsRotation = item.imageMediaMetadata.rotation;
-      }
-      catch ( e ) {
-        needsRotation = false;
-      }
-      if ( needsRotation ) {
+      if ( drive.needsRotation( item ) ) {
         var originalWidth;
         originalWidth = item.imageMediaMetadata.width;
         item.imageMediaMetadata.width = item.imageMediaMetadata.height;
@@ -376,105 +366,4 @@ function initializeApp() {
       return bDate.localeCompare( aDate );
     }
   }
-}
-
-function getOnePhoto( id, w, h, callback ) {
-  // This function gets the specified photo at the specified dimensions.
-  // It will check the local disk cache first, and pull the photo from Google
-  // if it can't find a suitable version locally.
-  // This function is the preferred way to get a photo by ID.
-  var isFullImage;
-  var fileSuffix;
-  if ( w === 0 && h === 0 ) {
-    isFullImage = true;
-    fileSuffix = 'full';
-  }
-  else {
-    fileSuffix = w + 'x' + h;
-  }
-  var filenameResized = CACHE_DIR + '/' + id + '-' + fileSuffix + '.jpg';
-  var filenameFull = CACHE_DIR + '/' + id + '-full.jpg';
-
-  fs.readFile(
-    filenameResized,
-    function ( err, data ) {
-      if ( err ) {
-        // resized photo didn't exist, look for a full-size one
-        fs.readFile(
-          filenameFull,
-          function ( err, data ) {
-            if ( err ) {
-              // full-size photo didn't exist, pull from web
-              _getPhotoFromWeb( id,
-                function ( err, data ) {
-                  if ( err ) {
-                    callback( err );
-                  }
-                  if ( isFullImage ) {
-                    callback( null, data);
-                  }
-                  else {
-                    formatter.resize( data, w, h, _writeToFile );
-                  }
-                }
-              );
-              return;
-            }
-            formatter.resize( data, w, h, _writeToFile );
-          }
-        );
-        return;
-      }
-      callback( null, data );
-    }
-  );
-
-  function _writeToFile( err, imageBuffer ) {
-    if ( err ) {
-      callback( err );
-      return;
-    }
-    formatter.save( imageBuffer, filenameResized, callback );
-  }
-
-  function _getPhotoFromWeb( id, callback ) {
-    var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
-    request( options, function (error, response, body) {
-      if (!error && response.statusCode === 200) {
-        _rotateImage( id, body, function( err, buffer ) {
-          if ( err ) {
-            callback( err );
-          }
-          formatter.save( buffer, filenameFull, callback );
-        });
-        return;
-      }
-      callback( 'Error loading photo from web: ' + error );
-    });
-  }
-
-  function _rotateImage( id, buffer, callback ) {
-    drive.getPhotoObject( id, _gotPhotoObject );
-
-    function _gotPhotoObject( err, photo ) {
-      if ( err ) {
-        callback( err );
-        return;
-      }
-      var needsRotation;
-      try {
-        needsRotation = photo.imageMediaMetadata.rotation;
-      }
-      catch ( e ) {
-        needsRotation = false;
-      }
-      if ( !needsRotation ) {
-        callback( null, buffer );
-      }
-      else {
-        formatter.rotate( buffer, callback );
-      }
-    }
-  }
-
 }
