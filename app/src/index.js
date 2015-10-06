@@ -366,7 +366,21 @@ function initializeApp( drive ) {
     function _sortPhotos( a, b ) {
       var aDate = a.imageMediaMetadata.date;
       var bDate = b.imageMediaMetadata.date;
-      return bDate.localeCompare( aDate );
+      if ( !bDate && !aDate ) {
+        return 0;
+      }
+      if ( !bDate ) {
+        return -1;
+      }
+      if ( !aDate ) {
+        return 1;
+      }
+      try {
+        return bDate.localeCompare( aDate );
+      }
+      catch ( e ) {
+        return 0;
+      }
     }
   }
 }
