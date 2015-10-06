@@ -242,6 +242,9 @@ function initializeApp( drive ) {
           _preCacheOnePhoto,
           function() { setTimeout( preCacheImages, REFRESH_INTERVAL ); }  
         );
+      },
+      function() {
+        // no op
       }
     );
     function _preCacheOnePhoto( photo, callback ) {
