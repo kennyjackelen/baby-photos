@@ -334,7 +334,7 @@ function initializeApp( drive ) {
     function _processPhotos( item ) {
       var dateStr;
       try {
-        var dateMoment = moment( item.imageMediaMetadata.date, 'YYYY:MM:DD HH:mm:ss' );
+        var dateMoment = _getPhotoDate( item );
         dateStr = dateMoment.format('LL');
       }
       catch ( e ) {}
@@ -364,23 +364,22 @@ function initializeApp( drive ) {
 
     // Sort photos so the most recently taken photo comes first
     function _sortPhotos( a, b ) {
-      var aDate = a.imageMediaMetadata.date;
-      var bDate = b.imageMediaMetadata.date;
-      if ( !bDate && !aDate ) {
-        return 0;
-      }
-      if ( !bDate ) {
-        return -1;
-      }
-      if ( !aDate ) {
-        return 1;
-      }
+      var aMoment = _getPhotoDate( a );
+      var bMoment = _getPhotoDate( b );
+      return bMoment.diff( aMoment );
+    }
+
+    function _getPhotoDate( photo ) {
       try {
-        return bDate.localeCompare( aDate );
+        if ( photo.imageMediaMetadata.date ) {
+          return moment( photo.imageMediaMetadata.date, 'YYYY-MM-DD HH:mm:ss' );
+        }
+        if ( photo.createdDate ) {
+          return moment( photo.createdDate );
+        }
       }
-      catch ( e ) {
-        return 0;
-      }
+      catch ( e ) {}
+      return moment().subtract( 50, 'years' );
     }
   }
 }
