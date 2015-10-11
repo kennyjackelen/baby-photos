@@ -237,6 +237,7 @@ function initializeApp( drive ) {
 
     getPhotosFromGoogleDrive(
       function( photos ) {
+        // runs on success
         async.eachSeries(
           photos,
           _preCacheOnePhoto,
@@ -244,7 +245,8 @@ function initializeApp( drive ) {
         );
       },
       function() {
-        // no op
+        // runs on error
+        setTimeout( preCacheImages, REFRESH_INTERVAL );
       }
     );
     function _preCacheOnePhoto( photo, callback ) {
