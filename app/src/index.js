@@ -380,14 +380,23 @@ function initializeApp( drive ) {
 
     function _getPhotoDate( photo ) {
       try {
+        if ( photo.jsonData.date ) {
+          return moment( photo.jsonData.date, 'YYYY-MM-DD' );
+        }
+      }
+      catch ( e ) {}  // keep trying other sources
+      try {
         if ( photo.imageMediaMetadata.date ) {
           return moment( photo.imageMediaMetadata.date, 'YYYY-MM-DD HH:mm:ss' );
         }
+      }
+      catch ( e ) {}  // keep trying other sources
+      try {
         if ( photo.createdDate ) {
           return moment( photo.createdDate );
         }
       }
-      catch ( e ) {}
+      catch ( e ) {}  // just toss it at the very beginning
       return moment().subtract( 50, 'years' );
     }
   }
