@@ -336,13 +336,20 @@ function initializeApp( drive ) {
     function _processPhotos( item ) {
       var dateStr;
       try {
+        item.jsonData = JSON.parse( item.description );
+      }
+      catch ( e ) {
+        item.jsonData = {};
+        item.jsonData.caption = item.description;
+      }
+      try {
         var dateMoment = _getPhotoDate( item );
         dateStr = dateMoment.format('LL');
       }
       catch ( e ) {}
       item.caption = '';
-      if ( item.description ) {
-        item.caption = item.description;
+      if ( item.jsonData.caption ) {
+        item.caption = item.jsonData.caption;
         if ( dateStr ) {
           item.caption = item.caption + ' (' + dateStr + ')';
         }
