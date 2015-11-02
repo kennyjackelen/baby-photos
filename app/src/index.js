@@ -336,13 +336,20 @@ function initializeApp( drive ) {
     function _processPhotos( item ) {
       var dateStr;
       try {
+        item.jsonData = JSON.parse( item.description );
+      }
+      catch ( e ) {
+        item.jsonData = {};
+        item.jsonData.caption = item.description;
+      }
+      try {
         var dateMoment = _getPhotoDate( item );
         dateStr = dateMoment.format('LL');
       }
       catch ( e ) {}
       item.caption = '';
-      if ( item.description ) {
-        item.caption = item.description;
+      if ( item.jsonData.caption ) {
+        item.caption = item.jsonData.caption;
         if ( dateStr ) {
           item.caption = item.caption + ' (' + dateStr + ')';
         }
@@ -373,14 +380,23 @@ function initializeApp( drive ) {
 
     function _getPhotoDate( photo ) {
       try {
+        if ( photo.jsonData.date ) {
+          return moment( photo.jsonData.date, 'YYYY-MM-DD' );
+        }
+      }
+      catch ( e ) {}  // keep trying other sources
+      try {
         if ( photo.imageMediaMetadata.date ) {
           return moment( photo.imageMediaMetadata.date, 'YYYY-MM-DD HH:mm:ss' );
         }
+      }
+      catch ( e ) {}  // keep trying other sources
+      try {
         if ( photo.createdDate ) {
           return moment( photo.createdDate );
         }
       }
-      catch ( e ) {}
+      catch ( e ) {}  // just toss it at the very beginning
       return moment().subtract( 50, 'years' );
     }
   }
