@@ -44,8 +44,12 @@ function getPhotoObject( photoID, callback, throttle ) {
 function getPhotoList( folderID, callback ) {
   var service = google.drive('v2');
   var MAX_RESULTS = 1000;
-  var REQUEST_THROTTLE_MS = 100;
-  var MAX_CONCURRENT_REQUESTS = 3;
+  
+  // The API limit is 10 requests per second (per user, but we are the only user)
+  // We'll stay under this as long as we wait a second after each request comes back,
+  // and we never have more than 10 requests in flight at once.
+  var REQUEST_THROTTLE_MS = 1000;
+  var MAX_CONCURRENT_REQUESTS = 10;
 
   service.children.list(
     {
