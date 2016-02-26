@@ -46,10 +46,13 @@ body {
 }
 
 .thumbnail.seen {
+  transition: filter 0.5s, -webkit-filter 0.5s;
+  filter: brightness(0.75);
   -webkit-filter: brightness(0.75);
 }
 
 .thumbnail.seen:hover {
+  filter: none;
   -webkit-filter: none;
 }
 

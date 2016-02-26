@@ -2,15 +2,17 @@
   'use strict';
 
   if ( document.readyState !== 'loading' ) {
-    initialize();
+    fadeOldImages();
   }
   else {
-    document.addEventListener( 'DOMContentLoaded', initialize );
+    document.addEventListener( 'DOMContentLoaded', fadeOldImages );
   }
 
-  function initialize() {
+  if ( document.readyState === 'complete' ) {
     lazyload();
-    fadeOldImages();
+  }
+  else {
+    window.addEventListener( 'load', lazyload );
   }
 
   function fadeOldImages() {
@@ -48,6 +50,7 @@
       // add the cached content to the parent
       list.innerHTML += contents;
     }
+    fadeOldImages();
   }
 
   function addClass( el, className ) {
