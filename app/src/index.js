@@ -72,6 +72,16 @@ function initializeApp( drive ) {
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
   hbs.localsAsTemplateData( app );
+  hbs.registerHelper('ifequal', function( lvalue, rvalue, options ) {
+    if (arguments.length < 3) {
+      throw new Error('Handlebars Helper ifequal needs 2 parameters');
+    }
+    if( lvalue !== rvalue ) {
+      return options.inverse( this );
+    } else {
+      return options.fn( this );
+    }
+  });
 
   app.locals.title = 'Baby Girl Jackelen';
   app.locals.subtitle = 'Arriving September 2015';

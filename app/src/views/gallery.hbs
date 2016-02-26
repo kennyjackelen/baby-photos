@@ -1,5 +1,8 @@
 <div class="mdl-grid mdl-grid--no-spacing my-gallery">
   {{#each photos}}
+  {{#ifequal @index 24}}
+  <template>
+  {{/ifequal}}
   <figure class="mdl-cell mdl-cell--{{../cellWidth}}-col mdl-cell--{{../cellWidthPhone}}-col-phone mdl-cell--{{../cellWidthTablet}}-col-tablet">
   <a href="photo/v{{@photoCacheVersion}}/{{id}}/full" data-id="{{id}}" data-size="{{imageMediaMetadata.width}}x{{imageMediaMetadata.height}}" data-caption="{{caption}}">
   <img class="thumbnail" title="{{caption}}"
@@ -9,4 +12,5 @@
   </a>
   </figure>
   {{/each}}
+  </template>
 </div>
