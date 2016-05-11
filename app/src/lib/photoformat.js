@@ -29,12 +29,12 @@ function resizeImage( buffer, w, h, callback ) {
     image.toBuffer( 'jpg', _gotBuffer );
   }
 
-  function _gotBuffer( err, buffer ) {
+  function _gotBuffer( err, bufferOut ) {
     if ( err ) {
       callback( '[_resizeImage] Error converting image to JPG: ' + err );
       return;
     }
-    callback( null, buffer );
+    callback( null, bufferOut );
   }
 }
 
