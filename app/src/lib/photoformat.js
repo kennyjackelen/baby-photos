@@ -79,22 +79,8 @@ Callback expects two parameters:
 - a modified image buffer
 */
 function minimizeAndSaveImage( buffer, filename, callback ) {
-  new imagemin()
-    .src( buffer )
-    .run( _minimizedImage );
-
-  function _minimizedImage( err, files ) {
-    if ( err ) {
-      callback( err );
-      return;
-    }
-    _writeToFile( files[0].contents );
-  }
-
-  function _writeToFile( bufferToSave ) {
-    fs.writeFile( filename, bufferToSave );
-    callback( null, bufferToSave );
-  }
+  fs.writeFile( filename, buffer );
+  callback( null, buffer );
 }
 
 module.exports.resize = resizeImage;
