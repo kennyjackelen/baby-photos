@@ -153,28 +153,20 @@ function initializeApp( ) {
       thumbSize1_5x: app.locals.thumbSize1_5x,
       thumbSize2x: app.locals.thumbSize2x
     };
-    childProcess.send('params', params );
+    childProcess.send( params );
 
-    childProcess.on('message', function ( m, body ) {
-      if ( m === 'cache_done' ) { _handleCacheDone(); }        
-      if ( m === 'strings' ) { _handleStrings( body ); }
-      if ( m === 'photo_list' ) { _handlePhotoList( body ); }
+    childProcess.on('message', function ( m ) {
+      if ( m.hasOwnProperty( 'title' ) ) { app.locals.title = m.title; }
+      if ( m.hasOwnProperty( 'subtitle' ) ) { app.locals.subtitle = m.subtitle; }
+      if ( m.hasOwnProperty( 'supporting_text' ) ) { app.locals.title = m.supporting_text; }
+      if ( m.hasOwnProperty( 'photo_list' ) ) { mostRecentPhotos = m.photo_list; }
+      if ( m.hasOwnProperty( 'cache_done')  ) { _handleCacheDone(); }
     });
 
     function _handleCacheDone() {
       console.log( 'caching done' );
       childProcess.disconnect();
       setTimeout( preCacheImages, REFRESH_INTERVAL );
-    }
-
-    function _handleStrings( strings ) {
-      app.locals.title = strings.title;
-      app.locals.subtitle = strings.subtitle;
-      app.locals.supporting_text = strings.supporting_text;
-    }
-
-    function _handlePhotoList( photoList ) {
-      mostRecentPhotos = photoList;
     }
   }
 

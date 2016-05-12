@@ -9,10 +9,8 @@ var TITLE_ENTRY = 1;
 var SUBTITLE_ENTRY = 3;
 var SUPPORTING_TEXT_ENTRY = 5;
 
-process.on('message', function ( m, params ) {
-  if ( m === 'params' ) {
-    cacheImages( params );
-  }
+process.on('message', function ( params ) {
+  cacheImages( params );
   console.log('caching images');
 });
 
@@ -103,7 +101,7 @@ function cacheImages( params ) {
             supporting_text = data.feed.entry[ SUPPORTING_TEXT_ENTRY ].content.$t;
           }
           catch(e){ console.log(e); return; }
-          process.send('strings', { title: title, subtitle: subtitle, supporting_text: supporting_text } );
+          process.send( { title: title, subtitle: subtitle, supporting_text: supporting_text } );
           callback();
         }
       }
