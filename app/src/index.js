@@ -153,7 +153,7 @@ function initializeApp( ) {
       thumbSize1_5x: app.locals.thumbSize1_5x,
       thumbSize2x: app.locals.thumbSize2x
     };
-    childProcess.send('app', params );
+    childProcess.send('params', params );
 
     childProcess.on('message', function ( m, body ) {
       if ( m === 'cache_done' ) { _handleCacheDone(); }        
