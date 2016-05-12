@@ -2,72 +2,25 @@
 'use strict';
 var express = require('express');
 var hbs = require('hbs');
-var fs = require('fs');
-var googleAuth = require('google-auth-library');
-var async = require('async');
 var request = require('request');
-var moment = require('moment');
+var fork = require('child_process').fork;
 
 var PORT = 8080;
 var REFRESH_INTERVAL = 5 * 60 * 1000;
 var CACHE_TTL = 365 * 24 * 60 * 60;  // one year
 
-var STRING_SHEET_ID = '1pnAVYQv_vkmKGgTuFG4bZJr319PyigkUTdRpg_jrH-8';
-var DRIVE_FOLDER_ID = '0B3JoT2zDJB9qfkhmNXN5TVd1NWN6S3ZiaUJGTkozRGZKX1FoaVROdWxlQnZrTXZUalRCZ2c';
-
-var TITLE_ENTRY = 1;
-var SUBTITLE_ENTRY = 3;
-var SUPPORTING_TEXT_ENTRY = 5;
-
 // This should stay in sync with the constant in the client-side JS (photoswipe-support.js).
 var PHOTO_CACHE_VERSION = '2';
 
-initializeCredentials();
+initializeApp( );
 
-function initializeCredentials() {
-  var TOKEN_PATH = __dirname + '/credentials/drive-api-token.json';
-  var CLIENT_SECRET_PATH = __dirname + '/credentials/client_secret.json';
-  async.parallel(
-    {
-      credentials: function( callback ) {
-        fs.readFile( CLIENT_SECRET_PATH, function ( err, content ) {
-          if ( err ) {
-            callback( 'Error loading client secret: ' + err );
-            return;
-          }
-          callback( null, JSON.parse( content ) );
-        } );
-      },
-      token: function( callback ) {
-        fs.readFile( TOKEN_PATH, function ( err, content ) {
-          if ( err ) {
-            callback( 'Error loading auth token: ' + err );
-            return;
-          }
-          callback( null, JSON.parse( content ) );
-        } );
-      }
-    },
-    function( err, results ) {
-      if ( err ) {
-        console.log( err );
-        return;
-      }
-      var clientSecret = results.credentials.installed.client_secret;
-      var clientId = results.credentials.installed.client_id;
-      var auth = new googleAuth();
-      var oauth2Client = new auth.OAuth2(clientId, clientSecret);
-      oauth2Client.credentials = results.token;
-      var drive = require('./lib/drive.js')( oauth2Client );
-      initializeApp( drive );
-    }
-  );
-}
+function initializeApp( ) {
 
-function initializeApp( drive ) {
+  var drive = require('./lib/drive.js')();
+  var getPhoto = require('./lib/photogetter.js')( drive );
+  var getPhotoList = require('./lib/photolistgetter.js')( drive );
 
   var app = express();
-  var getPhoto = require('./lib/photogetter.js')( drive );
   var mostRecentPhotos = [];
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
@@ -112,23 +65,25 @@ function initializeApp( drive ) {
 
     // Otherwise we'll take the slow way and make several requests
     // to Google before returning a document to the user.
-    getPhotosFromGoogleDrive(
-      function( photos ) {
+    getPhotoList(
+      function( err, photos ) {
+        if ( err ) {
+          res.status(500).send( err );
+          return;
+        }
         returnPhotosToClient( photos, req, res );
-      },
-      function( errMsg ) {
-        res.status(500).send( errMsg );
       }
     );  
   });
 
   app.get('/json', function (req, res) {
-    getPhotosFromGoogleDrive(
-      function( photos ) {
+    getPhotoList(
+      function( err, photos ) {
+        if ( err ) {
+          sendError( res, err );
+          return;
+        }
         res.json( photos );
-      },
-      function( errMsg ) {
-        sendError( res, errMsg );
       }
     );  
   });
@@ -189,6 +144,40 @@ function initializeApp( drive ) {
   console.log('Running on http://localhost:' + PORT);
   preCacheImages();
 
+  function preCacheImages() {
+    var childProcess;
+    var params;
+    childProcess = fork('./lib/cache.js');
+    params = {
+      thumbSize1x: app.locals.thumbSize1x,
+      thumbSize1_5x: app.locals.thumbSize1_5x,
+      thumbSize2x: app.locals.thumbSize2x
+    };
+    childProcess.send('app', params );
+
+    childProcess.on('message', function ( m, body ) {
+      if ( m === 'cache_done' ) { _handleCacheDone(); }        
+      if ( m === 'strings' ) { _handleStrings( body ); }
+      if ( m === 'photo_list' ) { _handlePhotoList( body ); }
+    });
+
+    function _handleCacheDone() {
+      console.log( 'caching done' );
+      childProcess.disconnect();
+      setTimeout( preCacheImages, REFRESH_INTERVAL );
+    }
+
+    function _handleStrings( strings ) {
+      app.locals.title = strings.title;
+      app.locals.subtitle = strings.subtitle;
+      app.locals.supporting_text = strings.supporting_text;
+    }
+
+    function _handlePhotoList( photoList ) {
+      mostRecentPhotos = photoList;
+    }
+  }
+
   function returnPhotosToClient( photos, req, res ) {
     var cellWidth;
     var cellWidthTablet;
@@ -242,174 +231,10 @@ function initializeApp( drive ) {
     );
   }
 
-  function preCacheImages() {
-    _getStringsFromSpreadsheet();
-
-    getPhotosFromGoogleDrive(
-      function( photos ) {
-        // runs on success
-        async.eachSeries(
-          photos,
-          _preCacheOnePhoto,
-          function() { setTimeout( preCacheImages, REFRESH_INTERVAL ); }  
-        );
-      },
-      function() {
-        // runs on error
-        setTimeout( preCacheImages, REFRESH_INTERVAL );
-      }
-    );
-    function _preCacheOnePhoto( photo, callback ) {
-      async.series(
-        [
-          function( asyncCB ){
-            var ratios = [ 1, 0.75, 0.5, 0.25, 0.15 ];
-            async.eachSeries(
-              ratios,
-              __preCacheOneImage,
-              function() { asyncCB(); }
-            );
-          },
-
-          function( asyncCB ) {
-            var thumbSizes = [ app.locals.thumbSize1x, app.locals.thumbSize1_5x, app.locals.thumbSize2x ];
-            async.eachSeries(
-              thumbSizes,
-              __preCacheOneThumbnail,
-              function() { asyncCB(); }
-            );
-          }
-        ],
-        function() { callback(); }
-      );
-
-      function __preCacheOneImage( ratio, callback ) {
-        var w, h;
-        if ( ratio === 1 ) {
-          w = 0;
-          h = 0;
-        }
-        else {
-          w = Math.floor( ratio * photo.imageMediaMetadata.width );
-          h = Math.floor( ratio * photo.imageMediaMetadata.height );
-        }
-        getPhoto( photo.id, w, h,
-          function() { callback(); }
-        );
-      }
-
-      function __preCacheOneThumbnail( thumbSize, callback ) {
-        getPhoto( photo.id, thumbSize, thumbSize,
-          function() { callback(); }
-        );
-      }
-    }
-
-    function _getStringsFromSpreadsheet() {
-      request('https://spreadsheets.google.com/feeds/cells/' + STRING_SHEET_ID + '/od6/public/full?alt=json',
-        function( error, response, body ) {
-          if ( !error && response.statusCode === 200 ) {
-            var title, subtitle, supporting_text;
-            try {
-              var data = JSON.parse( body );
-              title = data.feed.entry[ TITLE_ENTRY ].content.$t;
-              subtitle = data.feed.entry[ SUBTITLE_ENTRY ].content.$t;
-              supporting_text = data.feed.entry[ SUPPORTING_TEXT_ENTRY ].content.$t;
-            }
-            catch(e){ console.log(e); return; }
-            app.locals.title = title;
-            app.locals.subtitle = subtitle;
-            app.locals.supporting_text = supporting_text;
-          }
-        }
-      );
-    }
-  }
-
   function sendError( response, errMsg ) {
     response.status(500).send( errMsg );
   }
 
-  function getPhotosFromGoogleDrive( callback, errCallback ) {
-    drive.getPhotoList( DRIVE_FOLDER_ID, _gotPhotos );
-
-    function _gotPhotos( err, results ) {
-      if ( err ) {
-        errCallback( err );
-        return;
-      }
-      results.forEach( _processPhotos );
-      mostRecentPhotos = results.filter( _filterPhotos ).sort( _sortPhotos );
-      callback( mostRecentPhotos );
-    }
-
-    function _processPhotos( item ) {
-      var dateStr;
-      try {
-        item.jsonData = JSON.parse( item.description );
-      }
-      catch ( e ) {
-        item.jsonData = {};
-        item.jsonData.caption = item.description;
-      }
-      try {
-        var dateMoment = _getPhotoDate( item );
-        dateStr = dateMoment.format('LL');
-      }
-      catch ( e ) {}
-      item.caption = '';
-      if ( item.jsonData.caption ) {
-        item.caption = item.jsonData.caption;
-        if ( dateStr ) {
-          item.caption = item.caption + ' (' + dateStr + ')';
-        }
-      }
-      else if ( dateStr ) {
-        item.caption = dateStr;
-      }
-      if ( drive.needsRotation( item ) ) {
-        var originalWidth;
-        originalWidth = item.imageMediaMetadata.width;
-        item.imageMediaMetadata.width = item.imageMediaMetadata.height;
-        item.imageMediaMetadata.height = originalWidth;
-      }
-    }
-
-    function _filterPhotos( item ) {
-      if ( item.explicitlyTrashed ) { return false; }
-      if ( item.mimeType !== 'image/jpeg' ) { return false; }
-      return true;
-    }
-
-    // Sort photos so the most recently taken photo comes first
-    function _sortPhotos( a, b ) {
-      var aMoment = _getPhotoDate( a );
-      var bMoment = _getPhotoDate( b );
-      return bMoment.diff( aMoment );
-    }
-
-    function _getPhotoDate( photo ) {
-      try {
-        if ( photo.jsonData.date ) {
-          return moment( photo.jsonData.date, 'YYYY-MM-DD' );
-        }
-      }
-      catch ( e ) {}  // keep trying other sources
-      try {
-        if ( photo.imageMediaMetadata.date ) {
-          return moment( photo.imageMediaMetadata.date, 'YYYY-MM-DD HH:mm:ss' );
-        }
-      }
-      catch ( e ) {}  // keep trying other sources
-      try {
-        if ( photo.createdDate ) {
-          return moment( photo.createdDate );
-        }
-      }
-      catch ( e ) {}  // just toss it at the very beginning
-      return moment().subtract( 50, 'years' );
-    }
-  }
 }
 
 process.on('uncaughtException', function (err) {
