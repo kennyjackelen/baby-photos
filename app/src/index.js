@@ -147,7 +147,7 @@ function initializeApp( ) {
   function preCacheImages() {
     var childProcess;
     var params;
-    childProcess = fork('./lib/cache.js');
+    childProcess = fork( __dirname + '/lib/cache.js');
     params = {
       thumbSize1x: app.locals.thumbSize1x,
       thumbSize1_5x: app.locals.thumbSize1_5x,
