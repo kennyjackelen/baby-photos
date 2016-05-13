@@ -25,7 +25,10 @@ function cacheImages( params ) {
       _getStringsFromSpreadsheet,
       _getPhotoListAndCache
     ],
-    function() { process.send( { 'cache_done': true } ); }
+    function() { 
+      console.log('sending cache done...');
+      process.send( { 'cache_done': true } );
+    }
   );
 
   function _getPhotoListAndCache( callback ) {
@@ -102,6 +105,7 @@ function cacheImages( params ) {
             supporting_text = data.feed.entry[ SUPPORTING_TEXT_ENTRY ].content.$t;
           }
           catch(e){ console.log(e); return; }
+          console.log('sending strings...');
           process.send( { title: title, subtitle: subtitle, supporting_text: supporting_text } );
           callback();
         }
