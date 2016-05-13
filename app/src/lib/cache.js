@@ -20,7 +20,7 @@ function cacheImages( params ) {
   var getPhoto = require('./photogetter.js')( drive );
   var getPhotoList = require('./photolistgetter.js')( drive );
 
-  async.parallel(
+  async.series(
     [
       _getStringsFromSpreadsheet,
       _getPhotoListAndCache
@@ -32,6 +32,7 @@ function cacheImages( params ) {
     getPhotoList(
       function( err, photos ) {
         if ( !err ) {
+          console.log('sending photo list...');
           process.send( { 'photo_list': photos } );
         }
         async.eachSeries(
