@@ -158,7 +158,7 @@ function initializeApp( ) {
     childProcess.on('message', function ( m ) {
       if ( m.hasOwnProperty( 'title' ) ) { app.locals.title = m.title; }
       if ( m.hasOwnProperty( 'subtitle' ) ) { app.locals.subtitle = m.subtitle; }
-      if ( m.hasOwnProperty( 'supporting_text' ) ) { app.locals.title = m.supporting_text; }
+      if ( m.hasOwnProperty( 'supporting_text' ) ) { app.locals.supporting_text = m.supporting_text; }
       if ( m.hasOwnProperty( 'photo_list' ) ) { mostRecentPhotos = m.photo_list; }
       if ( m.hasOwnProperty( 'cache_done')  ) { _handleCacheDone(); }
     });
