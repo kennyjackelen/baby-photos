@@ -1,35 +1,11 @@
 ;(function(){
   'use strict';
 
-  if ( document.readyState !== 'loading' ) {
-    fadeOldImages();
-  }
-  else {
-    document.addEventListener( 'DOMContentLoaded', fadeOldImages );
-  }
-
   if ( document.readyState === 'complete' ) {
     lazyload();
   }
   else {
     window.addEventListener( 'load', lazyload );
-  }
-
-  function fadeOldImages() {
-    var LOCAL_STORAGE_SEEN_IDS = 'baby-photos-seen';
-    var links = document.querySelectorAll('.my-gallery a');
-    var oldSeenIDs = JSON.parse( window.localStorage.getItem( LOCAL_STORAGE_SEEN_IDS ) ) || {};
-
-    var newSeenIDs = {};
-    for ( var i = 0; i < links.length; i++ ) {
-      var link = links[ i ];
-      var id = link.getAttribute( 'data-id' );
-      newSeenIDs[ id ] = true;
-      if ( oldSeenIDs[ id ] ) {
-        addClass( link.querySelector('img'), 'seen' );
-      }
-    }
-    window.localStorage.setItem( LOCAL_STORAGE_SEEN_IDS, JSON.stringify( newSeenIDs ) );
   }
 
   function lazyload() {
@@ -50,15 +26,6 @@
       // add the cached content to the parent
       list.innerHTML += contents;
     }
-    fadeOldImages();
   }
-
-  function addClass( el, className ) {
-    if (el.classList) {
-      el.classList.add( className );
-    }
-    else {
-      el.className += ' ' + className;
-    }
-  }
+  
 })();
