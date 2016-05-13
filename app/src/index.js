@@ -164,7 +164,7 @@ function initializeApp( ) {
     });
 
     function _handleCacheDone() {
-      console.log( 'caching done' );
+      console.log( 'caching done: ' + process.pid );
       childProcess.disconnect();
       setTimeout( preCacheImages, REFRESH_INTERVAL );
     }

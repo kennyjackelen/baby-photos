@@ -11,7 +11,7 @@ var SUPPORTING_TEXT_ENTRY = 5;
 
 process.on('message', function ( params ) {
   cacheImages( params );
-  console.log('caching images');
+  console.log('caching images on pid: ' + process.pid );
 });
 
 function cacheImages( params ) {
