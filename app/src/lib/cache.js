@@ -25,14 +25,14 @@ function cacheImages( params ) {
       _getStringsFromSpreadsheet,
       _getPhotoListAndCache
     ],
-    function() { process.send('cache_done'); }
+    function() { process.send( { 'cache_done': true } ); }
   );
 
   function _getPhotoListAndCache( callback ) {
     getPhotoList(
       function( err, photos ) {
         if ( !err ) {
-          process.send('photo_list', photos );
+          process.send( { 'photo_list': photos } );
         }
         async.eachSeries(
           photos,
