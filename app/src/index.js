@@ -163,10 +163,13 @@ function initializeApp( ) {
       if ( m.hasOwnProperty( 'cache_done')  ) { _handleCacheDone(); }
     });
 
+    childProcess.on('exit', function () {
+      setTimeout( preCacheImages, REFRESH_INTERVAL );
+    });
+
     function _handleCacheDone() {
       console.log( 'caching done: ' + process.pid );
       childProcess.disconnect();
-      setTimeout( preCacheImages, REFRESH_INTERVAL );
     }
   }
 
