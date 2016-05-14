@@ -30,7 +30,18 @@ function getOnePhoto( id, w, h, callback ) {
   var filenameResized = CACHE_DIR + '/' + id + '-' + fileSuffix + '.jpg';
   var filenameFull = CACHE_DIR + '/' + id + '-full.jpg';
 
-  fs.readFile( filenameResized, _gotResizedFile );
+  fs.access( filenameResized, fs.R_OK, _canAccessResizedFile );
+
+  function _canAccessResizedFile( err ) {
+    if ( err ) {
+      // The resized image didn't exist on disk.
+      // See if the full size image is on disk instead.
+      _lookForFullSizeOnDisk();
+      return;
+    }
+    // The resized image already existed on disk. Read it so we can send it back.
+    fs.readFile( filenameResized, _gotResizedFile );
+  }
 
   function _gotResizedFile( err, data ) {
     if ( err ) {
@@ -44,6 +55,18 @@ function getOnePhoto( id, w, h, callback ) {
   }
 
   function _lookForFullSizeOnDisk() {
+    fs.access( filenameResized, fs.R_OK, _canAccessFullSizeFile );
+  }
+
+  function _canAccessFullSizeFile( err ) {
+    if ( err ) {
+      // The full size image didn't exist on disk.
+      // Get it from the web.
+      _getPhotoFromWeb( id, _gotPhotoFromWeb );
+      return;
+    }
+    // The full size image already existed on disk, but the resized image didn't.
+    // Read the full one, so that we can resize it, save it to disk, and send it back.
     fs.readFile( filenameFull, _gotFullSizeFile );
   }
 
