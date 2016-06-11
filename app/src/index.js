@@ -153,7 +153,6 @@ function initializeApp( ) {
       thumbSize1_5x: app.locals.thumbSize1_5x,
       thumbSize2x: app.locals.thumbSize2x
     };
-    childProcess.send( params );
 
     childProcess.on('message', function ( m ) {
       if ( m.hasOwnProperty( 'title' ) ) { app.locals.title = m.title; }
@@ -166,6 +165,9 @@ function initializeApp( ) {
     childProcess.on('exit', function () {
       setTimeout( preCacheImages, REFRESH_INTERVAL );
     });
+    
+    // this kicks off the caching
+    childProcess.send( params );
 
     function _handleCacheDone() {
       console.log( 'caching done: ' + process.pid );
