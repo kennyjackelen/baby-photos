@@ -38,6 +38,9 @@ function cacheImages( params ) {
           console.log('sending photo list...');
           process.send( { 'photo_list': photos } );
         }
+        else {
+          console.log('error getting photo list: ' + err );
+        }
         async.eachSeries(
           photos,
           _preCacheOnePhoto,
