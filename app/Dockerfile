@@ -22,5 +22,5 @@ RUN cd /src; gulp build
 
 EXPOSE  8080
 # expose node inspector
-EXPOSE  5858
-CMD ["forever", "-c \"node --debug\"", "/src/index.js"]
+EXPOSE  8081
+CMD ["forever", "-c \"node --debug --cli --debug-brk=false --web-port=8081  \"", "/src/index.js"]

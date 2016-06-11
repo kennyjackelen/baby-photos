@@ -2,7 +2,7 @@ app:
   build: app
   ports:
    - "49160:8080"
-   - "49161:5858"
+   - "49161:8081"
   volumes_from:
   - data
 data:
