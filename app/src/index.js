@@ -68,7 +68,7 @@ function initializeApp( ) {
     getPhotoList(
       function( err, photos ) {
         if ( err ) {
-          res.status(500).send( err );
+          res.status(500);
           return;
         }
         returnPhotosToClient( photos, req, res );
