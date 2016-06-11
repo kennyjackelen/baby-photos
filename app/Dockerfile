@@ -5,6 +5,7 @@ RUN node -v
 RUN npm install -g forever
 RUN npm install -g bower
 RUN npm install -g gulp
+RUN npm install -g node-inspector
 
 # Set up NPM first so we don't rebuild it every time some source code changes
 COPY src/package.json /src/
@@ -20,4 +21,5 @@ COPY src /src
 RUN cd /src; gulp build
 
 EXPOSE  8080
-CMD ["forever", "/src/index.js"]
+EXPOSE  5858  # node inspector
+CMD ["forever", "-c \"node --debug\"", "/src/index.js"]
