@@ -12,6 +12,7 @@ Callback expects two parameters:
 */
 function resizeImage( buffer, w, h, callback ) {
   lwip.open( buffer, 'jpg', _openedImage );
+  buffer = null;  // release reference to avoid memory leak
 
   function _openedImage( err, image ) {
     if ( err ) {
@@ -46,6 +47,7 @@ Callback expects two parameters:
 */
 function rotateImage( buffer, callback ){
   lwip.open( buffer, 'jpg', _openedImage );
+  buffer = null;  // release reference to avoid memory leak
 
   function _openedImage( err, image ) {
     if ( err ) {
@@ -81,6 +83,7 @@ Callback expects two parameters:
 function minimizeAndSaveImage( buffer, filename, callback ) {
   fs.writeFile( filename, buffer );
   callback( null, buffer );
+  buffer = null;  // release reference to avoid memory leak
 }
 
 module.exports.resize = resizeImage;

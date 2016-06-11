@@ -84,6 +84,7 @@ function getOnePhoto( id, w, h, callback ) {
 
   function _getPhotoFromWeb( id, callback ) {
     var options = { url: 'https://docs.google.com/uc?id=' + id, encoding: null };
+    console.log('sending web request for photo with id: ' + id );
     request( options, function (error, response, body) {
       if (!error && response.statusCode === 200) {
         _rotateImage( id, body, callback );
@@ -120,6 +121,7 @@ function getOnePhoto( id, w, h, callback ) {
 
   function _rotateImage( id, buffer, callback ) {
     drive.getPhotoObject( id, __gotPhotoObject );
+    buffer = null;  // release reference to avoid memory leak
 
     function __gotPhotoObject( err, photo ) {
       if ( err ) {
