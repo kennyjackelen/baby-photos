@@ -17,7 +17,7 @@ function getPhotosFromGoogleDrive( callback ) {
   function _gotPhotos( err, results ) {
     var photos;
     if ( err ) {
-      callback( true );
+      callback( err );
       return;
     }
     results.forEach( _processPhotos );
