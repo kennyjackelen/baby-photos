@@ -21,5 +21,6 @@ COPY src /src
 RUN cd /src; gulp build
 
 EXPOSE  8080
-EXPOSE  5858  # node inspector
+# expose node inspector
+EXPOSE  5858
 CMD ["forever", "-c \"node --debug\"", "/src/index.js"]
