@@ -56,7 +56,7 @@ function createOauth2Client() {
   );
 }
 
-function getPhotoObject( photoID, callback, throttle ) {
+function getPhotoObject( photoID, callback, throttle, dontRetry ) {
   var service = google.drive('v2');
   service.files.get(
     {
@@ -65,7 +65,15 @@ function getPhotoObject( photoID, callback, throttle ) {
     },
     function ___digestPhoto( err, response ) {
       if (err) {
-        callback( '[getPhotoObject] The API returned an error: ' + err );
+        if ( !dontRetry ) {
+          setTimeout(
+            function() { getPhotoObject( photoID, callback, throttle, 1 ); },
+            throttle
+          );
+        }
+        else {
+          callback( '[getPhotoObject] The API returned an error: ' + err );
+        }
         return;
       }
       if ( throttle ) {
