@@ -1,11 +1,6 @@
-FROM    centos:centos6
+FROM nodesource/node:5
 
-# Enable EPEL for Node.js
-RUN     rpm -Uvh http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm
-
-# Install Node.js and npm
-RUN     yum install -y npm
-RUN     yum install -y git
+RUN node -v
 
 RUN npm install -g forever
 RUN npm install -g bower
@@ -24,5 +19,5 @@ COPY src /src
 
 RUN cd /src; gulp build
 
-EXPOSE  8080
+EXPOSE  8080 8081
 CMD ["forever", "/src/index.js"]

@@ -2,11 +2,14 @@
 'use strict';
 var google = require('googleapis');
 var async = require('async');
+var fs = require('fs');
+var googleAuth = require('google-auth-library');
+var path = require('path');
 
 var oauth2Client;
 
-function initialize( myOauth2Client ) {
-  oauth2Client = myOauth2Client;
+function initialize() {
+  createOauth2Client();
   return {
     getPhotoObject: getPhotoObject,
     getPhotoList: getPhotoList,
@@ -14,7 +17,46 @@ function initialize( myOauth2Client ) {
   };
 }
 
-function getPhotoObject( photoID, callback, throttle ) {
+function createOauth2Client() {
+
+  var TOKEN_PATH = path.join( __dirname, '../credentials/drive-api-token.json');
+  var CLIENT_SECRET_PATH = path.join( __dirname, '../credentials/client_secret.json');
+  async.parallel(
+    {
+      credentials: function( callback ) {
+        fs.readFile( CLIENT_SECRET_PATH, function ( err, content ) {
+          if ( err ) {
+            callback( 'Error loading client secret: ' + err );
+            return;
+          }
+          callback( null, JSON.parse( content ) );
+        } );
+      },
+      token: function( callback ) {
+        fs.readFile( TOKEN_PATH, function ( err, content ) {
+          if ( err ) {
+            callback( 'Error loading auth token: ' + err );
+            return;
+          }
+          callback( null, JSON.parse( content ) );
+        } );
+      }
+    },
+    function( err, results ) {
+      if ( err ) {
+        console.log( err );
+        return;
+      }
+      var clientSecret = results.credentials.installed.client_secret;
+      var clientId = results.credentials.installed.client_id;
+      var auth = new googleAuth();
+      oauth2Client = new auth.OAuth2(clientId, clientSecret);
+      oauth2Client.credentials = results.token;
+    }
+  );
+}
+
+function getPhotoObject( photoID, callback, throttle, dontRetry ) {
   var service = google.drive('v2');
   service.files.get(
     {
@@ -23,7 +65,15 @@ function getPhotoObject( photoID, callback, throttle ) {
     },
     function ___digestPhoto( err, response ) {
       if (err) {
-        callback( '[getPhotoObject] The API returned an error: ' + err );
+        if ( !dontRetry ) {
+          setTimeout(
+            function() { getPhotoObject( photoID, callback, throttle, 1 ); },
+            throttle
+          );
+        }
+        else {
+          callback( '[getPhotoObject] The API returned an error: ' + err );
+        }
         return;
       }
       if ( throttle ) {
