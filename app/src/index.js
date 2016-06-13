@@ -4,6 +4,9 @@ var express = require('express');
 var hbs = require('hbs');
 var request = require('request');
 var fork = require('child_process').fork;
+var logger = require('./lib/logger.js')();
+var moment = require('moment-timezone');
+var uuid = require('node-uuid');
 
 var PORT = 8080;
 var REFRESH_INTERVAL = 5 * 60 * 1000;
@@ -22,6 +25,10 @@ function initializeApp( ) {
 
   var app = express();
   var mostRecentPhotos = [];
+  var cacheTimeoutID = null;
+  var childProcesses = [];
+  var cacheScheduledFor;
+  var validUUIDs = {};
 
   hbs.registerPartials( __dirname + '/build/views/partials' );
   hbs.localsAsTemplateData( app );
@@ -52,6 +59,7 @@ function initializeApp( ) {
   app.engine('hbs', hbs.__express);
 
   app.use( express.compress() ); 
+  app.use( express.urlencoded() ); // to support URL-encoded bodies
 
   app.get('/', function (req, res) {
 
@@ -68,6 +76,7 @@ function initializeApp( ) {
     getPhotoList(
       function( err, photos ) {
         if ( err ) {
+          logger.error( err );
           res.status(500);
           return;
         }
@@ -87,6 +96,37 @@ function initializeApp( ) {
       }
     );  
   });
+
+  app.get('/health', returnHealthPage );
+
+  app.post('/health', function (req, res) {
+    if ( req.body && req.body.uuid && validUUIDs[ req.body.uuid ] ) {
+      delete validUUIDs[ req.body.uuid ];
+      preCacheImages();
+    }
+    returnHealthPage( req, res );
+  });
+
+  function returnHealthPage(req,res) {
+    var cacheScheduledString = '';
+    var cacheScheduledStringLong = '';
+    var newUUID = uuid.v4();
+    validUUIDs[ newUUID ] = true;
+
+    if ( cacheScheduledFor ) {
+      cacheScheduledString = cacheScheduledFor.tz('America/Chicago').format('h:mm:ss a');
+      cacheScheduledStringLong = cacheScheduledFor.tz('America/Chicago').format('MMMM Do YYYY, h:mm:ss a');
+    }
+    res.render('health', {
+      uuid: newUUID,
+      cacheScheduledFor: cacheScheduledString,
+      cacheScheduledForWithDate: cacheScheduledStringLong,
+      cacheIsScheduled: ( cacheTimeoutID !== null ),
+      cacheInProgress: ( childProcesses.length > 0 ),
+      logs: logger.getLogs(),
+      layout: 'layouts/health'
+    } );
+  }
 
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/placeholder\\d+/:width/:height', function (req, res) {
     request.get('http://lorempixel.com/' + req.params.width + '/' + req.params.height + '/animals/')
@@ -141,13 +181,20 @@ function initializeApp( ) {
   app.use('/icons', express.static( __dirname + '/build/icons', staticOptions ) );
 
   app.listen(PORT);
-  console.log('Running on http://localhost:' + PORT);
+  logger.info('Running on http://localhost:' + PORT);
   preCacheImages();
 
   function preCacheImages() {
     var childProcess;
     var params;
+
+    if ( cacheTimeoutID !== null ) {
+      clearTimeout( cacheTimeoutID );
+      cacheTimeoutID = null;
+    }
+
     childProcess = fork( __dirname + '/lib/cache.js');
+    childProcesses.push( childProcess );
     params = {
       thumbSize1x: app.locals.thumbSize1x,
       thumbSize1_5x: app.locals.thumbSize1_5x,
@@ -155,22 +202,37 @@ function initializeApp( ) {
     };
 
     childProcess.on('message', function ( m ) {
-      if ( m.hasOwnProperty( 'title' ) ) { app.locals.title = m.title; }
+      if ( m.hasOwnProperty( 'title' ) ) {
+        logger.info('Received tokenized strings.');
+        app.locals.title = m.title;
+      }
       if ( m.hasOwnProperty( 'subtitle' ) ) { app.locals.subtitle = m.subtitle; }
       if ( m.hasOwnProperty( 'supporting_text' ) ) { app.locals.supporting_text = m.supporting_text; }
-      if ( m.hasOwnProperty( 'photo_list' ) ) { mostRecentPhotos = m.photo_list; }
+      if ( m.hasOwnProperty( 'photo_list' ) ) {
+        logger.info('Received photo list.');
+        mostRecentPhotos = m.photo_list;
+      }
       if ( m.hasOwnProperty( 'cache_done')  ) { _handleCacheDone(); }
     });
 
     childProcess.on('exit', function () {
-      setTimeout( preCacheImages, REFRESH_INTERVAL );
+      for (var i = 0; i < childProcesses.length; i++) {
+        if ( childProcesses[i].pid === childProcess.pid ) {
+          childProcesses.splice( i, 1 ); // remove this element
+          break;
+        }
+      }
+      logger.info('Scheduling next cache.');
+      cacheTimeoutID = setTimeout( preCacheImages, REFRESH_INTERVAL );
+      cacheScheduledFor = moment().add( REFRESH_INTERVAL, 'ms');
     });
     
     // this kicks off the caching
+    logger.info('Starting caching.');
     childProcess.send( params );
 
     function _handleCacheDone() {
-      console.log( 'caching done: ' + process.pid );
+      logger.info('Caching done.');
       childProcess.disconnect();
     }
   }
@@ -229,6 +291,7 @@ function initializeApp( ) {
   }
 
   function sendError( response, errMsg ) {
+    logger.error( errMsg );
     response.status(500).send( errMsg );
   }
 

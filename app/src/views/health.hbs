@@ -1,0 +1,43 @@
+<div class="subheader">Caching Status</div>
+
+{{#if cacheInProgress}}
+  <div class="statusMessage">
+    Caching is in progress.
+  </div>
+{{else}}
+
+  {{#if cacheIsScheduled}}
+    <div class="statusMessage">
+      Caching is scheduled for
+      <abbr title="{{ cacheScheduledForWithDate }}">
+        {{ cacheScheduledFor }}
+      </abbr>.
+      <button id="cacheNow" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-button--primary">Start Caching Now!</button>
+    </div>
+  {{else}}
+    <div class="statusMessage statusMessage--bad">
+      Caching is not scheduled!
+      <button id="cacheNow" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--primary">Start Caching Now!</button>
+    </div>
+  {{/if}}
+
+{{/if}}
+
+<div class="subheader">Logs</div>
+
+{{#each logs}}
+<div class="logMessage">
+  <div class="logMessage-timestamp">
+    {{time}}
+  </div>
+  <div class="logMessage-messageBody">
+    {{msg}}
+  </div>
+</div>
+{{/each}}
+
+<div class="timezoneMessage">All times Central.</div>
+
+<form id="cacheForm" method="POST">
+  <input type="hidden" name="uuid" value="{{uuid}}">
+</form>
