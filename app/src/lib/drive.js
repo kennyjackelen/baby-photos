@@ -44,7 +44,6 @@ function createOauth2Client() {
     },
     function( err, results ) {
       if ( err ) {
-        console.log( err );
         return;
       }
       var clientSecret = results.credentials.installed.client_secret;

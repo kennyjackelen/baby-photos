@@ -11,7 +11,6 @@ var SUPPORTING_TEXT_ENTRY = 5;
 
 process.on('message', function ( params ) {
   cacheImages( params );
-  console.log('caching images on pid: ' + process.pid );
 });
 
 function cacheImages( params ) {
@@ -26,7 +25,6 @@ function cacheImages( params ) {
       _getPhotoListAndCache
     ],
     function() { 
-      console.log('sending cache done...');
       process.send( { 'cache_done': true } );
     }
   );
@@ -35,11 +33,7 @@ function cacheImages( params ) {
     getPhotoList(
       function( err, photos ) {
         if ( !err ) {
-          console.log('sending photo list...');
           process.send( { 'photo_list': photos } );
-        }
-        else {
-          console.log('error getting photo list: ' + err );
         }
         async.eachSeries(
           photos,
@@ -107,8 +101,7 @@ function cacheImages( params ) {
             subtitle = data.feed.entry[ SUBTITLE_ENTRY ].content.$t;
             supporting_text = data.feed.entry[ SUPPORTING_TEXT_ENTRY ].content.$t;
           }
-          catch(e){ console.log(e); return; }
-          console.log('sending strings...');
+          catch(e){ return; }
           process.send( { title: title, subtitle: subtitle, supporting_text: supporting_text } );
           callback();
         }

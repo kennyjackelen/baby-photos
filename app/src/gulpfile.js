@@ -12,7 +12,7 @@ var gulpif = require('gulp-if');
 gulp.task( '_concat', function() {
   var userefAssets = useref.assets();
 
-  return gulp.src('views/layouts/main.hbs')
+  return gulp.src('views/layouts/*.hbs')
           .pipe( userefAssets )
           .pipe( gulpif('*.js', uglify() ) )
           .pipe( gulpif('*.css', csso() ) )
@@ -23,7 +23,7 @@ gulp.task( '_concat', function() {
 });
 
 gulp.task( '_replaceRefs', [ '_concat' ], function() {
-  return gulp.src('views/layouts/main.hbs')
+  return gulp.src('views/layouts/*.hbs')
           .pipe( useref() )
           .pipe( revReplace( { manifest: gulp.src('./working/rev-manifest.json') } ) )
           .pipe( gulp.dest('build/views/layouts') );
