@@ -1,8 +1,3 @@
-
-.title-card--title-text {
-  /*font-family: Trebuchet, Tahoma, Arial, sans-serif;*/
-}
-
 abbr {
   border-bottom: 1px dotted;
 }
@@ -33,4 +28,14 @@ abbr {
 .timezoneMessage {
   opacity: 0.5;
   font-size: 80%;
+}
+
+.mdl-button--primary.mdl-button--primary {
+  /* matching specificity from mdl... they have the class name twice */
+  color: rgb(68, 77, 80);
+}
+
+.mdl-button--primary.mdl-button--primary.mdl-button--fab, .mdl-button--primary.mdl-button--primary.mdl-button--raised {
+  color: white;
+  background-color: rgb(68, 77, 80);
 }
