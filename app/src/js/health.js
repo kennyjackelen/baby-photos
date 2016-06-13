@@ -10,9 +10,12 @@
   }
 
   ready( function() {
-    document.querySelector('#cacheNow').addEventListener('click', function(){
-      document.querySelector('#cacheForm').submit();
-    });
+    var cacheNowButton = document.querySelector('#cacheNow');
+    if ( cacheNowButton !== null ) {
+      cacheNowButton.addEventListener('click', function(){
+        document.querySelector('#cacheForm').submit();
+      });
+    }
   });
 
 })();
