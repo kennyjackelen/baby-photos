@@ -193,6 +193,13 @@ function initializeApp( ) {
       cacheTimeoutID = null;
     }
 
+    if ( childProcesses.length > 0 ) {
+      logger.info('Killing ' + childProcesses.length + 'existing child processes.');
+      for ( var i = 0; i < childProcesses.length; i++ ) {
+        childProcesses[ i ].disconnect();
+      }
+    }
+
     childProcess = fork( __dirname + '/lib/cache.js');
     childProcesses.push( childProcess );
     params = {
@@ -221,6 +228,11 @@ function initializeApp( ) {
           childProcesses.splice( i, 1 ); // remove this element
           break;
         }
+      }
+      if ( cacheTimeoutID !== null ) {
+        logger.info('Canceling scheduled cache so we don\'t have multiple jobs scheduled.');
+        clearTimeout( cacheTimeoutID );
+        cacheTimeoutID = null;
       }
       logger.info('Scheduling next cache.');
       cacheTimeoutID = setTimeout( preCacheImages, REFRESH_INTERVAL );
