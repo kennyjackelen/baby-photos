@@ -104,7 +104,7 @@ function initializeApp( ) {
       delete validUUIDs[ req.body.uuid ];
       preCacheImages();
     }
-    returnHealthPage( req, res );
+    res.redirect( 303, '.' );
   });
 
   function returnHealthPage(req,res) {
