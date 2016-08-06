@@ -195,7 +195,7 @@ function initializeApp( ) {
     }
 
     if ( childProcesses.length > 0 ) {
-      logger.info('Killing ' + childProcesses.length + 'existing child processes.');
+      logger.info('Killing ' + childProcesses.length + ' existing child process' + (childProcesses.length > 1 ? 'es' : '' ) + '.');
       for ( var i = 0; i < childProcesses.length; i++ ) {
         childProcesses[ i ].disconnect();
       }
