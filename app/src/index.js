@@ -235,8 +235,8 @@ function initializeApp( ) {
         cacheTimeoutID = null;
       }
       logger.info('Scheduling next cache.');
-      cacheTimeoutID = setTimeout( preCacheImages, REFRESH_INTERVAL );
-      cacheScheduledFor = moment().add( REFRESH_INTERVAL, 'ms');
+      //cacheTimeoutID = setTimeout( preCacheImages, REFRESH_INTERVAL );
+      //cacheScheduledFor = moment().add( REFRESH_INTERVAL, 'ms');
     });
     
     // this kicks off the caching
