@@ -104,7 +104,8 @@ function initializeApp( ) {
       delete validUUIDs[ req.body.uuid ];
       preCacheImages();
     }
-    returnHealthPage( req, res );
+    // redirect back to the page we came from
+    res.redirect( 303, req.headers.referer );
   });
 
   function returnHealthPage(req,res) {
@@ -194,9 +195,14 @@ function initializeApp( ) {
     }
 
     if ( childProcesses.length > 0 ) {
-      logger.info('Killing ' + childProcesses.length + 'existing child processes.');
+      logger.info('Killing ' + childProcesses.length + ' existing child process' + (childProcesses.length > 1 ? 'es' : '' ) + '.');
       for ( var i = 0; i < childProcesses.length; i++ ) {
-        childProcesses[ i ].disconnect();
+        try {
+          childProcesses[ i ].disconnect();
+        }
+        catch ( e ) { 
+          // swallow the error if the IPC channel is already disconnected - this is fine.
+        }
       }
     }
 
@@ -245,7 +251,12 @@ function initializeApp( ) {
 
     function _handleCacheDone() {
       logger.info('Caching done.');
-      childProcess.disconnect();
+      try {
+        childProcess.disconnect();
+      }
+      catch ( e ) { 
+          // swallow the error if the IPC channel is already disconnected - this is fine.
+        }
     }
   }
 
