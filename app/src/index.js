@@ -100,12 +100,12 @@ function initializeApp( ) {
   app.get('/health', returnHealthPage );
 
   app.post('/health', function (req, res) {
-    console.log( req );
     if ( req.body && req.body.uuid && validUUIDs[ req.body.uuid ] ) {
       delete validUUIDs[ req.body.uuid ];
       preCacheImages();
     }
-    res.redirect( 303, '.' );
+    // redirect back to the page we came from
+    res.redirect( 303, req.headers.referer );
   });
 
   function returnHealthPage(req,res) {
