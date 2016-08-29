@@ -147,7 +147,7 @@ function initializeApp( ) {
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/full', function (req, res) {
     res.set( 'Content-Type', 'image/jpeg' );
     res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
-    res.sendFile( getPhotoPath( req.params.imageID, 0, 0) );
+    res.sendfile( getPhotoPath( req.params.imageID, 0, 0) );
   });
 
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/:width/:height', function (req, res) {
@@ -161,7 +161,7 @@ function initializeApp( ) {
     }
     res.set( 'Content-Type', 'image/jpeg' );
     res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
-    res.sendFile( getPhotoPath( req.params.imageID, Number( req.params.width ), Number( req.params.height ) ) );
+    res.sendfile( getPhotoPath( req.params.imageID, Number( req.params.width ), Number( req.params.height ) ) );
   });
 
   var staticOptions = {
