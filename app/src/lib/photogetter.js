@@ -11,7 +11,23 @@ var drive;
 
 function initialize( myDrive ) {
   drive = myDrive;
-  return getOnePhoto;
+  return { 
+    getOnePhoto: getOnePhoto,
+    getOnePhotoPath: getOnePhotoPath
+  };
+}
+
+function getOnePhotoPath( id, w, h ) {
+  return CACHE_DIR + '/' + id + '-' + getFileSuffix( w, h ) + '.jpg';
+}
+
+function getFileSuffix( w, h ) {
+  if ( w === 0 && h === 0 ) {
+    return 'full';
+  }
+  else {
+    return w + 'x' + h;
+  }
 }
 
 function getOnePhoto( id, w, h, origCallback ) {
@@ -20,7 +36,6 @@ function getOnePhoto( id, w, h, origCallback ) {
   // if it can't find a suitable version locally.
   // This function is the preferred way to get a photo by ID.
   var isFullImage;
-  var fileSuffix;
 
   var callback = function() {
     if ( DEBUG_MODE ) { 
@@ -35,13 +50,9 @@ function getOnePhoto( id, w, h, origCallback ) {
 
   if ( w === 0 && h === 0 ) {
     isFullImage = true;
-    fileSuffix = 'full';
   }
-  else {
-    fileSuffix = w + 'x' + h;
-  }
-  var filenameResized = CACHE_DIR + '/' + id + '-' + fileSuffix + '.jpg';
-  var filenameFull = CACHE_DIR + '/' + id + '-full.jpg';
+  var filenameResized = getOnePhotoPath( id, w, h );
+  var filenameFull = getOnePhotoPath( id, 0, 0 );
 
   if ( isFullImage ) {
     fs.access( filenameFull, fs.R_OK, _canAccessFullSizeFile );

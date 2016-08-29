@@ -20,7 +20,7 @@ initializeApp( );
 function initializeApp( ) {
 
   var drive = require('./lib/drive.js')();
-  var getPhoto = require('./lib/photogetter.js')( drive );
+  var getPhotoPath = require('./lib/photogetter.js')( drive ).getOnePhotoPath;
   var getPhotoList = require('./lib/photolistgetter.js')( drive );
 
   var app = express();
@@ -140,16 +140,9 @@ function initializeApp( ) {
   });
 
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/full', function (req, res) {
-    getPhoto( req.params.imageID, 0, 0,
-      function( error, imageBuffer ) {
-        if ( error ) {
-          sendError( res, error );
-          return;
-        }
-        res.set( 'Content-Type', 'image/jpeg' );
-        res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
-        res.send( imageBuffer );
-      });
+    res.set( 'Content-Type', 'image/jpeg' );
+    res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
+    res.sendFile( getPhotoPath( req.params.imageID, 0, 0) );
   });
 
   app.get('/photo/v' + PHOTO_CACHE_VERSION + '/:imageID/:width/:height', function (req, res) {
@@ -161,16 +154,9 @@ function initializeApp( ) {
       sendError( res, 'Invalid height value.');
       return;
     }
-    getPhoto( req.params.imageID, Number( req.params.width ), Number( req.params.height ),
-      function( error, imageBuffer ) {
-        if ( error ) {
-          sendError( res, error );
-          return;
-        }
-        res.set( 'Content-Type', 'image/jpeg' );
-        res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
-        res.send( imageBuffer );
-      });
+    res.set( 'Content-Type', 'image/jpeg' );
+    res.setHeader('Cache-Control', 'public, max-age=' + CACHE_TTL);
+    res.sendFile( getPhotoPath( req.params.imageID, Number( req.params.width ), Number( req.params.height ) ) );
   });
 
   var staticOptions = {

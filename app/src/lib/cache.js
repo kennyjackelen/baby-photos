@@ -16,7 +16,7 @@ process.on('message', function ( params ) {
 function cacheImages( params ) {
 
   var drive = require('./drive.js')();
-  var getPhoto = require('./photogetter.js')( drive );
+  var getPhoto = require('./photogetter.js')( drive ).getOnePhoto;
   var getPhotoList = require('./photolistgetter.js')( drive );
 
   async.series(
