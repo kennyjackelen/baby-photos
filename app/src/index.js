@@ -71,18 +71,23 @@ function initializeApp( ) {
       return;
     }
 
-    // Otherwise we'll take the slow way and make several requests
-    // to Google before returning a document to the user.
-    getPhotoList(
-      function( err, photos ) {
-        if ( err ) {
-          logger.error( err );
-          res.status(500);
-          return;
+    if ( req.query.reload ) {
+      // Otherwise we'll take the slow way and make several requests
+      // to Google before returning a document to the user.
+      getPhotoList(
+        function( err, photos ) {
+          if ( err ) {
+            logger.error( err );
+            res.status(500);
+            return;
+          }
+          returnPhotosToClient( photos, req, res );
         }
-        returnPhotosToClient( photos, req, res );
-      }
-    );  
+      );
+      return;
+    }
+
+    res.status( 500 ).send('Server is still starting up!');
   });
 
   app.get('/json', function (req, res) {
@@ -174,6 +179,7 @@ function initializeApp( ) {
   function preCacheImages() {
     var childProcess;
     var params;
+    var newPhotoList;
 
     if ( cacheTimeoutID !== null ) {
       clearTimeout( cacheTimeoutID );
@@ -209,7 +215,7 @@ function initializeApp( ) {
       if ( m.hasOwnProperty( 'supporting_text' ) ) { app.locals.supporting_text = m.supporting_text; }
       if ( m.hasOwnProperty( 'photo_list' ) ) {
         logger.info('Received photo list.');
-        mostRecentPhotos = m.photo_list;
+        newPhotoList = m.photo_list;
       }
       if ( m.hasOwnProperty( 'cache_done')  ) { _handleCacheDone(); }
     });
@@ -237,6 +243,7 @@ function initializeApp( ) {
 
     function _handleCacheDone() {
       logger.info('Caching done.');
+      mostRecentPhotos = newPhotoList;
       try {
         childProcess.disconnect();
       }
